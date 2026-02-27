@@ -115,10 +115,7 @@ export function runTaintAnalysis(ast: File, filePath: string, rules: TaintRuleSe
       const sink = isSinkCall(path.node);
       if (!sink) return;
       const args = path.node.arguments;
-      const hasTaintedArg = args.some(
-        (arg: t.Expression | t.SpreadElement | null | undefined) =>
-          Boolean(arg && t.isExpression(arg) && valueIsTainted(arg))
-      );
+      const hasTaintedArg = args.some((arg) => Boolean(t.isExpression(arg) && valueIsTainted(arg)));
       if (!hasTaintedArg) return;
       const loc = path.node.loc?.start;
       findings.push({
