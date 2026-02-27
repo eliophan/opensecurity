@@ -12,6 +12,10 @@ export type GlobalConfig = {
 export type ProjectConfig = {
   include?: string[];
   exclude?: string[];
+  rulesPath?: string;
+  cveCachePath?: string;
+  cveApiUrl?: string;
+  dataSensitivity?: "low" | "medium" | "high";
 };
 
 export const DEFAULT_INCLUDE = ["**/*"];

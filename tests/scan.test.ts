@@ -36,4 +36,25 @@ describe("scan options", () => {
     const rel = files.map((f) => path.relative(root, f)).sort();
     expect(rel).toEqual(["README.md"]);
   });
+
+  it("runs rule-based scan without API key", async () => {
+    const root = await createTempDir();
+    const prevConfigHome = process.env.OPENSECURITY_CONFIG_HOME;
+    process.env.OPENSECURITY_CONFIG_HOME = path.join(root, ".config");
+    await fs.writeFile(
+      path.join(root, "a.ts"),
+      "const input = getUserInput();\\n eval(input);",
+      "utf8"
+    );
+
+    const result = await scan({ cwd: root, include: ["**/*.ts"], exclude: [] });
+    const hasEvalRule = result.findings.some((finding) => finding.id === "js-eval-injection");
+    expect(hasEvalRule).toBe(true);
+
+    if (prevConfigHome === undefined) {
+      delete process.env.OPENSECURITY_CONFIG_HOME;
+    } else {
+      process.env.OPENSECURITY_CONFIG_HOME = prevConfigHome;
+    }
+  });
 });

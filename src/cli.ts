@@ -33,6 +33,15 @@ program
   .option("--cwd <cwd>", "override working directory")
   .option("--include <pattern...>", "include glob patterns (overrides project config)")
   .option("--exclude <pattern...>", "exclude glob patterns (overrides project config)")
+  .option("--rules <path>", "path to rules JSON (overrides project config)")
+  .option("--cve-cache <path>", "path to CVE cache JSON (overrides project config)")
+  .option("--cve-api-url <url>", "CVE API URL (overrides project config)")
+  .option("--simulate", "include simulated payload + impact for dependency findings")
+  .option(
+    "--data-sensitivity <level>",
+    "low|medium|high (affects risk scoring)",
+    "medium"
+  )
   .option("--dry-run", "list matched files without calling the model")
   .action(async (opts) => {
     try {
@@ -58,7 +67,12 @@ program
         model: opts.model,
         cwd: opts.cwd,
         include: opts.include,
-        exclude: opts.exclude
+        exclude: opts.exclude,
+        rulesPath: opts.rules,
+        cveCachePath: opts.cveCache,
+        cveApiUrl: opts.cveApiUrl,
+        simulate: opts.simulate,
+        dataSensitivity: opts.dataSensitivity
       });
       const output = opts.format === "json" ? renderJsonReport(result) : renderTextReport(result);
       console.log(output || "No findings.");
