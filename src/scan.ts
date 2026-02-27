@@ -26,9 +26,15 @@ export type ScanOptions = {
   include?: string[];
   exclude?: string[];
   dryRun?: boolean;
+  concurrency?: number;
+  maxRetries?: number;
+  retryDelayMs?: number;
 };
 
 const DEFAULT_MAX_CHARS = 4000;
+const DEFAULT_CONCURRENCY = 2;
+const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_RETRY_DELAY_MS = 500;
 
 export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const cwd = options.cwd ?? process.cwd();
@@ -38,6 +44,9 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const apiType = globalConfig.apiType ?? "responses";
   const model = options.model ?? globalConfig.model ?? "gpt-4o-mini";
   const maxChars = options.maxChars ?? DEFAULT_MAX_CHARS;
+  const concurrency = Math.max(1, options.concurrency ?? DEFAULT_CONCURRENCY);
+  const maxRetries = Math.max(0, options.maxRetries ?? DEFAULT_MAX_RETRIES);
+  const retryDelayMs = Math.max(0, options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS);
 
   const files = await walkFiles(cwd, filters);
   if (options.dryRun) {
@@ -47,6 +56,8 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   if (!apiKey) throw new Error("Missing API key. Run `opensecurity login` first.");
   const findings: Finding[] = [];
 
+  const tasks: Array<() => Promise<void>> = [];
+
   for (const filePath of files) {
     const relPath = path.relative(cwd, filePath);
     const content = await fs.readFile(filePath, "utf8");
@@ -54,24 +65,32 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
 
     for (let i = 0; i < chunks.length; i += 1) {
       const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
-      const responseText = await callModel({
-        apiKey,
-        baseUrl,
-        apiType,
-        model,
-        prompt
-      });
+      tasks.push(async () => {
+        const responseText = await callModelWithRetry(
+          {
+            apiKey,
+            baseUrl,
+            apiType,
+            model,
+            prompt
+          },
+          maxRetries,
+          retryDelayMs
+        );
 
-      const parsed = extractJson(responseText);
-      if (!parsed?.findings) continue;
-      for (const finding of parsed.findings) {
-        findings.push({
-          ...finding,
-          file: finding.file ?? relPath
-        });
-      }
+        const parsed = extractJson(responseText);
+        if (!parsed?.findings) return;
+        for (const finding of parsed.findings) {
+          findings.push({
+            ...finding,
+            file: finding.file ?? relPath
+          });
+        }
+      });
     }
   }
+
+  await runWithConcurrency(tasks, concurrency);
 
   return { findings };
 }
@@ -150,6 +169,49 @@ async function callModel(params: CallModelParams): Promise<string> {
   if (!res.ok) throw new Error(`Model request failed: ${res.status} ${await res.text()}`);
   const data = await res.json();
   return data?.output_text ?? extractResponsesText(data);
+}
+
+async function callModelWithRetry(
+  params: CallModelParams,
+  maxRetries: number,
+  retryDelayMs: number
+): Promise<string> {
+  let attempt = 0;
+  let delay = retryDelayMs;
+  // Simple exponential backoff with jitter
+  while (true) {
+    try {
+      return await callModel(params);
+    } catch (err) {
+      if (attempt >= maxRetries) throw err;
+      await sleep(delay + Math.floor(Math.random() * 100));
+      delay = delay * 2;
+      attempt += 1;
+    }
+  }
+}
+
+async function runWithConcurrency(tasks: Array<() => Promise<void>>, limit: number): Promise<void> {
+  const queue = tasks.slice();
+  const workers: Promise<void>[] = [];
+
+  const worker = async () => {
+    while (queue.length) {
+      const task = queue.shift();
+      if (!task) return;
+      await task();
+    }
+  };
+
+  for (let i = 0; i < limit; i += 1) {
+    workers.push(worker());
+  }
+
+  await Promise.all(workers);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function extractResponsesText(data: any): string {
