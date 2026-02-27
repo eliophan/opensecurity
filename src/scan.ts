@@ -25,21 +25,14 @@ export type ScanOptions = {
   model?: string;
   include?: string[];
   exclude?: string[];
+  dryRun?: boolean;
 };
 
 const DEFAULT_MAX_CHARS = 4000;
 
 export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const cwd = options.cwd ?? process.cwd();
-  const globalConfig = await loadGlobalConfig();
-  const projectConfig = await loadProjectConfig(cwd);
-  const filters = resolveProjectFilters({
-    include: options.include ?? projectConfig.include,
-    exclude: options.exclude ?? projectConfig.exclude
-  });
-
-  const apiKey = globalConfig.apiKey?.trim();
-  if (!apiKey) throw new Error("Missing API key. Run `opensecurity login` first.");
+  const { filters, globalConfig } = await resolveScanContext(options, cwd);
 
   const baseUrl = globalConfig.baseUrl ?? "https://api.openai.com/v1/responses";
   const apiType = globalConfig.apiType ?? "responses";
@@ -47,6 +40,11 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const maxChars = options.maxChars ?? DEFAULT_MAX_CHARS;
 
   const files = await walkFiles(cwd, filters);
+  if (options.dryRun) {
+    return { findings: [] };
+  }
+  const apiKey = globalConfig.apiKey?.trim();
+  if (!apiKey) throw new Error("Missing API key. Run `opensecurity login` first.");
   const findings: Finding[] = [];
 
   for (const filePath of files) {
@@ -76,6 +74,22 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   }
 
   return { findings };
+}
+
+export async function listMatchedFiles(options: ScanOptions = {}): Promise<string[]> {
+  const cwd = options.cwd ?? process.cwd();
+  const { filters } = await resolveScanContext(options, cwd);
+  return walkFiles(cwd, filters);
+}
+
+async function resolveScanContext(options: ScanOptions, cwd: string) {
+  const globalConfig = await loadGlobalConfig();
+  const projectConfig = await loadProjectConfig(cwd);
+  const filters = resolveProjectFilters({
+    include: options.include ?? projectConfig.include,
+    exclude: options.exclude ?? projectConfig.exclude
+  });
+  return { globalConfig, projectConfig, filters };
 }
 
 export function chunkText(text: string, maxChars: number): string[] {

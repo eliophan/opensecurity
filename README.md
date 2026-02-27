@@ -6,6 +6,7 @@ CLI skeleton for openSecurity.
 
 - `opensecurity login`
 - `opensecurity scan`
+  - `--dry-run` to list matched files only
 
 ## Config
 

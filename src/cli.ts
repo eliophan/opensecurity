@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+import path from "node:path";
 import { Command } from "commander";
 import { login } from "./login.js";
-import { scan, renderJsonReport, renderTextReport } from "./scan.js";
+import { scan, renderJsonReport, renderTextReport, listMatchedFiles } from "./scan.js";
 
 const program = new Command();
 
@@ -32,8 +33,25 @@ program
   .option("--cwd <cwd>", "override working directory")
   .option("--include <pattern...>", "include glob patterns (overrides project config)")
   .option("--exclude <pattern...>", "exclude glob patterns (overrides project config)")
+  .option("--dry-run", "list matched files without calling the model")
   .action(async (opts) => {
     try {
+      if (opts.dryRun) {
+        const files = await listMatchedFiles({
+          cwd: opts.cwd,
+          include: opts.include,
+          exclude: opts.exclude
+        });
+        if (!files.length) {
+          console.log("No files matched.");
+          return;
+        }
+        const base = opts.cwd ?? process.cwd();
+        const output = files.map((file: string) => path.relative(base, file)).join("\n");
+        console.log(output);
+        return;
+      }
+
       const result = await scan({
         format: opts.format,
         maxChars: opts.maxChars,
