@@ -14,6 +14,8 @@ CLI skeleton for openSecurity.
   - `--cve-api-url <url>` to query a CVE API (optional)
   - `--simulate` to include payload + impact simulation for dependency findings
   - `--data-sensitivity <level>` low|medium|high for risk scoring
+  - `--dependency-only` to run only dependency/CVE scanning
+  - `--no-ai` to skip AI model scanning
   - `--cwd <path>` to override working directory
 
 ## Config

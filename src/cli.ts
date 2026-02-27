@@ -42,6 +42,8 @@ program
     "low|medium|high (affects risk scoring)",
     "medium"
   )
+  .option("--dependency-only", "only run dependency/CVE scanning")
+  .option("--no-ai", "skip AI model scanning")
   .option("--dry-run", "list matched files without calling the model")
   .action(async (opts) => {
     try {
@@ -72,7 +74,9 @@ program
         cveCachePath: opts.cveCache,
         cveApiUrl: opts.cveApiUrl,
         simulate: opts.simulate,
-        dataSensitivity: opts.dataSensitivity
+        dataSensitivity: opts.dataSensitivity,
+        dependencyOnly: opts.dependencyOnly,
+        noAi: opts.noAi
       });
       const output = opts.format === "json" ? renderJsonReport(result) : renderTextReport(result);
       console.log(output || "No findings.");

@@ -42,6 +42,8 @@ export type ScanOptions = {
   cveApiUrl?: string;
   simulate?: boolean;
   dataSensitivity?: "low" | "medium" | "high";
+  dependencyOnly?: boolean;
+  noAi?: boolean;
   dryRun?: boolean;
   concurrency?: number;
   maxRetries?: number;
@@ -75,52 +77,54 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
 
   const tasks: Array<() => Promise<void>> = [];
 
-  for (const filePath of files) {
-    const relPath = path.relative(cwd, filePath);
-    const content = await fs.readFile(filePath, "utf8");
-    if (isAnalyzableFile(filePath)) {
-      const parsed = parseSource(content, relPath);
-      const ruleFindings = runRuleEngine(parsed.ast, relPath, rules);
-      for (const finding of ruleFindings) {
-        findings.push({
-          id: finding.ruleId,
-          severity: finding.severity,
-          title: finding.ruleName,
-          description: `${finding.message} [${finding.owasp}]`,
-          file: finding.file,
-          line: finding.line,
-          owasp: finding.owasp,
-          category: "code"
-        });
+  if (!options.dependencyOnly) {
+    for (const filePath of files) {
+      const relPath = path.relative(cwd, filePath);
+      const content = await fs.readFile(filePath, "utf8");
+      if (isAnalyzableFile(filePath)) {
+        const parsed = parseSource(content, relPath);
+        const ruleFindings = runRuleEngine(parsed.ast, relPath, rules);
+        for (const finding of ruleFindings) {
+          findings.push({
+            id: finding.ruleId,
+            severity: finding.severity,
+            title: finding.ruleName,
+            description: `${finding.message} [${finding.owasp}]`,
+            file: finding.file,
+            line: finding.line,
+            owasp: finding.owasp,
+            category: "code"
+          });
+        }
       }
-    }
-    const chunks = chunkText(content, maxChars);
+      const chunks = chunkText(content, maxChars);
 
-    if (apiKey) {
-      for (let i = 0; i < chunks.length; i += 1) {
-        const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
-        tasks.push(async () => {
-          const responseText = await callModelWithRetry(
-            {
-              apiKey,
-              baseUrl,
-              apiType,
-              model,
-              prompt
-            },
-            maxRetries,
-            retryDelayMs
-          );
+      if (apiKey && !options.noAi) {
+        for (let i = 0; i < chunks.length; i += 1) {
+          const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
+          tasks.push(async () => {
+            const responseText = await callModelWithRetry(
+              {
+                apiKey,
+                baseUrl,
+                apiType,
+                model,
+                prompt
+              },
+              maxRetries,
+              retryDelayMs
+            );
 
-          const parsed = extractJson(responseText);
-          if (!parsed?.findings) return;
-          for (const finding of parsed.findings) {
-            findings.push({
-              ...finding,
-              file: finding.file ?? relPath
-            });
-          }
-        });
+            const parsed = extractJson(responseText);
+            if (!parsed?.findings) return;
+            for (const finding of parsed.findings) {
+              findings.push({
+                ...finding,
+                file: finding.file ?? relPath
+              });
+            }
+          });
+        }
       }
     }
   }
