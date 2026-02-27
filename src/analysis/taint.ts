@@ -1,4 +1,4 @@
-import traverse from "@babel/traverse";
+import traverseImport from "@babel/traverse";
 import type { File, CallExpression, Identifier, MemberExpression } from "@babel/types";
 import * as t from "@babel/types";
 
@@ -27,6 +27,7 @@ export type TaintFinding = {
 };
 
 export function runTaintAnalysis(ast: File, filePath: string, rules: TaintRuleSet): TaintFinding[] {
+  const traverse = normalizeTraverse(traverseImport);
   const findings: TaintFinding[] = [];
   const taintedVarsStack: Array<Set<string>> = [];
   const taintedExpressions = new WeakSet<t.Node>();
@@ -149,4 +150,10 @@ function memberExpressionToString(node: MemberExpression): string | null {
   if (!objectName) return null;
   if (!t.isIdentifier(property)) return null;
   return `${objectName}.${property.name}`;
+}
+
+function normalizeTraverse(
+  value: typeof traverseImport
+): typeof traverseImport {
+  return (value as unknown as { default?: typeof traverseImport }).default ?? value;
 }

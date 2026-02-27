@@ -1,4 +1,4 @@
-import traverse, { NodePath } from "@babel/traverse";
+import traverseImport, { NodePath } from "@babel/traverse";
 import type {
   File,
   CallExpression,
@@ -49,6 +49,7 @@ export type DataFlowGraph = {
 };
 
 export function buildImportGraph(ast: File, filePath: string): ImportGraph {
+  const traverse = normalizeTraverse(traverseImport);
   const graph: ImportGraph = new Map();
   graph.set(filePath, new Set());
 
@@ -70,6 +71,7 @@ export function buildImportGraph(ast: File, filePath: string): ImportGraph {
 }
 
 export function buildFunctionMap(ast: File, filePath: string): FunctionMap {
+  const traverse = normalizeTraverse(traverseImport);
   const map: FunctionMap = new Map();
 
   const registerFunction = (
@@ -134,6 +136,7 @@ export function buildFunctionMap(ast: File, filePath: string): FunctionMap {
 }
 
 export function buildCallGraph(ast: File, filePath: string, functions: FunctionMap): CallGraph {
+  const traverse = normalizeTraverse(traverseImport);
   const graph: CallGraph = new Map();
   const fnStack: string[] = [];
 
@@ -227,6 +230,7 @@ export function buildCallGraph(ast: File, filePath: string, functions: FunctionM
 }
 
 export function buildDataFlowGraph(ast: File, filePath: string): DataFlowGraph {
+  const traverse = normalizeTraverse(traverseImport);
   const nodes: DataFlowNode[] = [];
   const edges: DataFlowEdge[] = [];
   const scopes: Array<Map<string, DataFlowNode>> = [];
@@ -355,4 +359,10 @@ function findFunctionId(
     return info.id;
   }
   return null;
+}
+
+function normalizeTraverse(
+  value: typeof traverseImport
+): typeof traverseImport {
+  return (value as unknown as { default?: typeof traverseImport }).default ?? value;
 }
