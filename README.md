@@ -7,6 +7,9 @@ CLI skeleton for openSecurity.
 - `opensecurity login`
 - `opensecurity scan`
   - `--dry-run` to list matched files only
+  - `--include <pattern...>` to override include globs
+  - `--exclude <pattern...>` to override exclude globs
+  - `--cwd <path>` to override working directory
 
 ## Config
 
