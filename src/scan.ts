@@ -23,6 +23,8 @@ export type ScanOptions = {
   format?: "text" | "json";
   maxChars?: number;
   model?: string;
+  include?: string[];
+  exclude?: string[];
 };
 
 const DEFAULT_MAX_CHARS = 4000;
@@ -31,7 +33,10 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const cwd = options.cwd ?? process.cwd();
   const globalConfig = await loadGlobalConfig();
   const projectConfig = await loadProjectConfig(cwd);
-  const filters = resolveProjectFilters(projectConfig);
+  const filters = resolveProjectFilters({
+    include: options.include ?? projectConfig.include,
+    exclude: options.exclude ?? projectConfig.exclude
+  });
 
   const apiKey = globalConfig.apiKey?.trim();
   if (!apiKey) throw new Error("Missing API key. Run `opensecurity login` first.");
