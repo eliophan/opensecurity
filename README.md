@@ -25,6 +25,23 @@ CLI skeleton for openSecurity.
   - `cveApiUrl`: CVE API URL
   - `dataSensitivity`: low|medium|high
 
+## CVE Cache
+
+Sample cache: `cve-cache.json`
+
+Schema (array of objects):
+- `id` (string)
+- `package` (string)
+- `ecosystem` ("npm" | "pypi")
+- `affectedRange` (string, semver range)
+- `fixedVersion` (string, optional)
+- `severity` ("low" | "medium" | "high" | "critical")
+- `cvssScore` (number, optional)
+- `description` (string, optional)
+- `references` (string[], optional)
+- `exploitability` ("low" | "medium" | "high", optional)
+- `privilegeRequired` ("none" | "low" | "high", optional)
+
 ## Dev
 
 - `npm run dev`
