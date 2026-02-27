@@ -84,7 +84,9 @@ export async function loadProjectConfig(cwd = process.cwd()): Promise<ProjectCon
   return existing ?? {};
 }
 
-export function resolveProjectFilters(project: ProjectConfig): Required<ProjectConfig> {
+export function resolveProjectFilters(
+  project: ProjectConfig
+): Required<Pick<ProjectConfig, "include" | "exclude">> {
   return {
     include: project.include?.length ? project.include : [...DEFAULT_INCLUDE],
     exclude: project.exclude?.length ? project.exclude : [...DEFAULT_EXCLUDE]

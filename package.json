@@ -22,7 +22,10 @@
     "semver": "^7.6.3"
   },
   "devDependencies": {
+    "@types/babel__traverse": "^7.20.7",
     "@types/node": "^22.10.0",
+    "@types/picomatch": "^3.0.2",
+    "@types/semver": "^7.5.8",
     "tsx": "^4.19.0",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8"

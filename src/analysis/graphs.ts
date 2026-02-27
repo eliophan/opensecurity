@@ -54,11 +54,11 @@ export function buildImportGraph(ast: File, filePath: string): ImportGraph {
   graph.set(filePath, new Set());
 
   traverse(ast, {
-    ImportDeclaration(path) {
+    ImportDeclaration(path: NodePath<t.ImportDeclaration>) {
       const source = path.node.source.value;
       graph.get(filePath)?.add(source);
     },
-    CallExpression(path) {
+    CallExpression(path: NodePath<t.CallExpression>) {
       const callee = path.node.callee;
       if (!t.isIdentifier(callee) || callee.name !== "require") return;
       const arg = path.node.arguments[0];
@@ -110,23 +110,23 @@ export function buildFunctionMap(ast: File, filePath: string): FunctionMap {
   });
 
   traverse(ast, {
-    FunctionDeclaration(path) {
+    FunctionDeclaration(path: NodePath<t.FunctionDeclaration>) {
       const name = path.node.id?.name ?? "<anonymous>";
       registerFunction(name, path.node, "function");
     },
-    FunctionExpression(path) {
+    FunctionExpression(path: NodePath<t.FunctionExpression>) {
       const name = inferFunctionName(path) ?? "<anonymous>";
       registerFunction(name, path.node, "function");
     },
-    ArrowFunctionExpression(path) {
+    ArrowFunctionExpression(path: NodePath<t.ArrowFunctionExpression>) {
       const name = inferFunctionName(path) ?? "<anonymous>";
       registerFunction(name, path.node, "arrow");
     },
-    ObjectMethod(path) {
+    ObjectMethod(path: NodePath<t.ObjectMethod>) {
       const name = getPropertyName(path.node.key) ?? "<anonymous>";
       registerFunction(name, path.node, "method");
     },
-    ClassMethod(path) {
+    ClassMethod(path: NodePath<t.ClassMethod>) {
       const name = getPropertyName(path.node.key) ?? "<anonymous>";
       registerFunction(name, path.node, "method");
     }
@@ -168,7 +168,7 @@ export function buildCallGraph(ast: File, filePath: string, functions: FunctionM
       }
     },
     FunctionDeclaration: {
-      enter(path) {
+      enter(path: NodePath<t.FunctionDeclaration>) {
         const name = path.node.id?.name ?? "<anonymous>";
         const id = findFunctionId(functions, filePath, name, path.node.loc?.start.line);
         pushFn(id ?? `${filePath}:${name}:${path.node.loc?.start.line ?? 0}`);
@@ -178,7 +178,7 @@ export function buildCallGraph(ast: File, filePath: string, functions: FunctionM
       }
     },
     FunctionExpression: {
-      enter(path) {
+      enter(path: NodePath<t.FunctionExpression>) {
         const name = inferFunctionName(path) ?? "<anonymous>";
         const id = findFunctionId(functions, filePath, name, path.node.loc?.start.line);
         pushFn(id ?? `${filePath}:${name}:${path.node.loc?.start.line ?? 0}`);
@@ -188,7 +188,7 @@ export function buildCallGraph(ast: File, filePath: string, functions: FunctionM
       }
     },
     ArrowFunctionExpression: {
-      enter(path) {
+      enter(path: NodePath<t.ArrowFunctionExpression>) {
         const name = inferFunctionName(path) ?? "<anonymous>";
         const id = findFunctionId(functions, filePath, name, path.node.loc?.start.line);
         pushFn(id ?? `${filePath}:${name}:${path.node.loc?.start.line ?? 0}`);
@@ -198,7 +198,7 @@ export function buildCallGraph(ast: File, filePath: string, functions: FunctionM
       }
     },
     ObjectMethod: {
-      enter(path) {
+      enter(path: NodePath<t.ObjectMethod>) {
         const name = getPropertyName(path.node.key) ?? "<anonymous>";
         const id = findFunctionId(functions, filePath, name, path.node.loc?.start.line);
         pushFn(id ?? `${filePath}:${name}:${path.node.loc?.start.line ?? 0}`);
@@ -208,7 +208,7 @@ export function buildCallGraph(ast: File, filePath: string, functions: FunctionM
       }
     },
     ClassMethod: {
-      enter(path) {
+      enter(path: NodePath<t.ClassMethod>) {
         const name = getPropertyName(path.node.key) ?? "<anonymous>";
         const id = findFunctionId(functions, filePath, name, path.node.loc?.start.line);
         pushFn(id ?? `${filePath}:${name}:${path.node.loc?.start.line ?? 0}`);
@@ -217,7 +217,7 @@ export function buildCallGraph(ast: File, filePath: string, functions: FunctionM
         popFn();
       }
     },
-    CallExpression(path) {
+    CallExpression(path: NodePath<t.CallExpression>) {
       const caller = currentFn();
       const callee = getCalleeName(path.node);
       if (!callee) return;
@@ -283,26 +283,26 @@ export function buildDataFlowGraph(ast: File, filePath: string): DataFlowGraph {
         popScope();
       }
     },
-    VariableDeclarator(path) {
+    VariableDeclarator(path: NodePath<t.VariableDeclarator>) {
       const id = path.node.id;
       if (t.isIdentifier(id)) {
         recordDef(id.name, id);
       }
     },
-    AssignmentExpression(path) {
+    AssignmentExpression(path: NodePath<t.AssignmentExpression>) {
       const left = path.node.left;
       if (t.isIdentifier(left)) {
         recordDef(left.name, left);
       }
     },
-    UpdateExpression(path) {
+    UpdateExpression(path: NodePath<t.UpdateExpression>) {
       const arg = path.node.argument;
       if (t.isIdentifier(arg)) {
         recordUse(arg.name, arg);
         recordDef(arg.name, arg);
       }
     },
-    Identifier(path) {
+    Identifier(path: NodePath<t.Identifier>) {
       if (!path.isReferencedIdentifier()) return;
       recordUse(path.node.name, path.node);
     }

@@ -101,21 +101,24 @@ export function runTaintAnalysis(ast: File, filePath: string, rules: TaintRuleSe
         popScope();
       }
     },
-    VariableDeclarator(path) {
+    VariableDeclarator(path: import("@babel/traverse").NodePath<t.VariableDeclarator>) {
       if (!path.node.init) return;
       if (!t.isIdentifier(path.node.id)) return;
       handleAssignment(path.node.id, path.node.init);
     },
-    AssignmentExpression(path) {
+    AssignmentExpression(path: import("@babel/traverse").NodePath<t.AssignmentExpression>) {
       const left = path.node.left;
       if (!t.isIdentifier(left)) return;
       handleAssignment(left, path.node.right);
     },
-    CallExpression(path) {
+    CallExpression(path: import("@babel/traverse").NodePath<t.CallExpression>) {
       const sink = isSinkCall(path.node);
       if (!sink) return;
       const args = path.node.arguments;
-      const hasTaintedArg = args.some((arg) => arg && t.isExpression(arg) && valueIsTainted(arg));
+      const hasTaintedArg = args.some(
+        (arg: t.Expression | t.SpreadElement | null | undefined) =>
+          Boolean(arg && t.isExpression(arg) && valueIsTainted(arg))
+      );
       if (!hasTaintedArg) return;
       const loc = path.node.loc?.start;
       findings.push({
