@@ -54,7 +54,7 @@ export async function startProxyServer(options: ProxyOptions = {}): Promise<void
           "Content-Type": req.headers["content-type"] ?? "application/json",
           Authorization: `Bearer ${apiKey}`
         },
-        body
+        body: body.length ? new Uint8Array(body) : undefined
       });
 
       const responseBody = await upstreamRes.arrayBuffer();
