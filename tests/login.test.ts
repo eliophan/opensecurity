@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { login } from "../src/login.js";
+import { saveMockToken } from "../src/login.js";
 import { getGlobalConfigPath } from "../src/config.js";
 
 async function createTempDir(): Promise<string> {
@@ -17,7 +17,7 @@ describe("login", () => {
       CODEX_API_KEY: "env-key"
     } as NodeJS.ProcessEnv;
 
-    const config = await login(env, async () => "");
+    const config = await saveMockToken("env-key", env);
     const saved = await fs.readFile(getGlobalConfigPath(env), "utf8");
 
     expect(config.apiKey).toBe("env-key");
