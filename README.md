@@ -1,6 +1,6 @@
 # OpenSecurity
 
-AI-powered hybrid security scanner for GitHub and CI.
+Open-source, user-facing hybrid security scanner for GitHub and CI.
 
 ## Vision
 
