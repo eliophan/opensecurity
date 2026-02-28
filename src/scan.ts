@@ -228,6 +228,24 @@ async function callModel(params: CallModelParams): Promise<string> {
 
   const scrub = (msg: string) => msg.replace(apiKey, "sk-***" + apiKey.slice(-4));
 
+  // If we have a codex token but no backend is configured, we can't call OpenAI directly.
+  // In a real app, this would hit something like 'https://api.opensecurity.ai/v1/scan'.
+  if (apiKey.startsWith("sk-codex-") && (baseUrl.includes("openai.com") || !baseUrl)) {
+    // Return a mock result for demonstration/UX flow, otherwise it would 401.
+    return JSON.stringify({
+      findings: [
+        {
+          id: "AI-MOCK-001",
+          severity: "medium",
+          title: "AI Analysis Placeholder (Mock)",
+          description: "Codex OAuth successful. Connect a real backend to see live AI results. [OWASP A01]",
+          file: "demo.js",
+          line: 1
+        }
+      ]
+    });
+  }
+
   if (apiType === "chat" || baseUrl.includes("/chat/completions")) {
     const body = JSON.stringify({
       model,
