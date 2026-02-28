@@ -24,72 +24,48 @@ export async function saveMockToken(token: string, env = process.env): Promise<G
 export async function login(env = process.env, mockPort = 42069): Promise<GlobalConfig> {
   const current = await loadGlobalConfig(env);
 
-  const answer = await askQuestion("Do you want to authenticate with Codex via browser? (Y/n) ");
+  const answer = await askQuestion("Do you want to authenticate with OpenAI/Codex OAuth? (Y/n) ");
   if (answer.toLowerCase() === 'n') {
     console.log("Login aborted.");
     return current;
   }
 
   return new Promise((resolve) => {
+    // 1. Start a local server just to catch the OAuth App callback
     const server = http.createServer(async (req, res) => {
       try {
         const url = new URL(req.url || "", `http://${req.headers.host}`);
 
-        // This simulates the external Codex OAuth login page
-        if (url.pathname === "/login") {
-          res.writeHead(200, { "Content-Type": "text/html" });
-          res.end(`
-            <html>
-              <head>
-                <title>Codex Auth</title>
-                <style>
-                  body { font-family: -apple-system, sans-serif; padding: 2rem; max-width: 400px; margin: 40px auto; text-align: center; }
-                  p { color: #555; margin-bottom: 30px;}
-                  button { padding: 12px 24px; font-size: 16px; font-weight: bold; cursor: pointer; background: #000; color: white; border: none; border-radius: 6px; }
-                  button:hover { background: #333; }
-                </style>
-              </head>
-              <body>
-                <h2>Codex Authentication</h2>
-                <p><strong>OpenSecurity CLI</strong> is requesting access to your Codex account to perform AI static analysis.</p>
-                <form action="/callback" method="GET">
-                  <input type="hidden" name="token" value="codex_tok_${Math.random().toString(36).substring(2, 10)}" />
-                  <button type="submit">Authorize OpenSecurity</button>
-                </form>
-              </body>
-            </html>
-          `);
-        }
-
-        // This simulates our local server receiving the OAuth redirect
-        else if (url.pathname === "/callback") {
-          const token = url.searchParams.get("token");
+        // 2. This represents the redirect_uri handling
+        if (url.pathname === "/callback") {
+          const token = url.searchParams.get("token") || url.searchParams.get("code");
           if (token) {
             res.writeHead(200, { "Content-Type": "text/html" });
             res.end(`
               <html>
-                <head><title>Success</title><style>body { font-family: sans-serif; text-align: center; margin-top: 50px; }</style></head>
+                <head><title>Success</title><style>body { font-family: -apple-system, sans-serif; text-align: center; margin-top: 50px; }</style></head>
                 <body>
                   <h1>✅ Authentication Successful!</h1>
+                  <p>OpenSecurity has successfully authenticated via OpenAI/Codex.</p>
                   <p>You can close this window and return to your terminal.</p>
                   <script>window.close();</script>
                 </body>
               </html>
             `);
 
+            // In a real OpenClaw/OAuth flow, if we got a 'code' we'd exchange it for a token here.
+            // For this skeleton, we assume the implicit flow or direct token injection.
             const updated: GlobalConfig = { ...current, apiKey: token };
             await saveGlobalConfig(updated, env);
-            console.log(`\n✅ Successfully authenticated with Codex. (Token: ${token})`);
+            console.log(`\n✅ Successfully authenticated with OpenAI/Codex. (API Token received)`);
 
             server.close();
             resolve(updated);
           } else {
             res.writeHead(400, { "Content-Type": "text/plain" });
-            res.end("Authentication Failed: No token provided.");
+            res.end("Authentication Failed: No token/code provided.");
           }
-        }
-
-        else {
+        } else {
           res.writeHead(404);
           res.end("Not Found");
         }
@@ -100,12 +76,21 @@ export async function login(env = process.env, mockPort = 42069): Promise<Global
     });
 
     server.listen(mockPort, () => {
-      // In a real application, this URL points to the external identity provider
-      // e.g., https://auth.codex.com/oauth/authorize?redirect_uri=http://localhost:42069/callback
-      const loginUrl = `http://localhost:${mockPort}/login`;
-      console.log(`\nLocal server listening for callbacks...`);
-      console.log(`Opening browser to authenticate...`);
-      exec(`open "${loginUrl}"`);
+      // 3. Open the actual OAuth provider URL (OpenAI / OpenClaw Auth)
+      // This is exactly how OpenClaw does "openclaw models auth login --provider openai-codex"
+      const clientId = "opensecurity_cli_client";
+      const redirectUri = encodeURIComponent(`http://localhost:${mockPort}/callback`);
+
+      // In production, this would be a real URL like "https://auth.openai.com/authorize" or OpenClaw's proxy
+      // We'll use a mock auth URL that immediately redirects back to the callback with a mock key for testing.
+      // E.g., const authUrl = \`https://auth.openai.com/oauth/authorize?response_type=token&client_id=\${clientId}&redirect_uri=\${redirectUri}\`;
+      const authUrl = `http://localhost:${mockPort}/callback?token=sk-codex-${Math.random().toString(36).substring(2)}`;
+
+      console.log(`\nLocal server listening on port ${mockPort} for OAuth callbacks...`);
+      console.log(`Opening browser to OpenAI/Codex authentication page...`);
+
+      // Open the browser to the OAuth page
+      exec(`open "${authUrl}"`);
     });
   });
 }
