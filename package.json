@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "tsx src/cli.ts",
+    "proxy": "tsx src/proxy.ts",
     "build": "tsc",
     "test": "vitest run",
     "lint": "eslint ."

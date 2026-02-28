@@ -2,6 +2,7 @@
 import path from "node:path";
 import { Command } from "commander";
 import { login } from "./login.js";
+import { startProxyServer } from "./proxy.js";
 import { scan, renderJsonReport, renderTextReport, listMatchedFiles } from "./scan.js";
 import { setTelemetryEnabled, trackEvent } from "./telemetry.js";
 import { loadGlobalConfig } from "./config.js";
@@ -28,6 +29,19 @@ program
           await executeScan({ format: "text", maxChars: 4000 });
         }
       }
+    } catch (err: any) {
+      console.error(err?.message ?? err);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("proxy")
+  .description("Run local OAuth proxy for Codex tokens")
+  .option("--port <port>", "port to listen on", (v) => Number(v), 8787)
+  .action(async (opts) => {
+    try {
+      await startProxyServer({ port: opts.port });
     } catch (err: any) {
       console.error(err?.message ?? err);
       process.exitCode = 1;

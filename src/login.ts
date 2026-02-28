@@ -37,7 +37,7 @@ export async function login(env = process.env): Promise<GlobalConfig> {
       process.exit(1);
     }
     const current = await loadGlobalConfig(env);
-    const updated: GlobalConfig = { ...current, apiKey: key };
+    const updated: GlobalConfig = { ...current, apiKey: key, authMode: "api_key" };
     await saveGlobalConfig(updated, env);
     console.log("\n✅ Successfully saved OpenAI API Key.");
     return updated;
@@ -60,6 +60,7 @@ async function codexOAuthLogin(env = process.env, port = 1455): Promise<GlobalCo
 
   const clientId = "app_EMoamEEZ73f0CkXaXp7hrann";
   const redirectUri = encodeURIComponent(`http://localhost:${port}/auth/callback`);
+  const proxyBaseUrl = env.OPENSECURITY_PROXY_URL ?? "http://localhost:8787/v1/responses";
 
   const authUrl = `https://auth.openai.com/oauth/authorize?response_type=code` +
     `&client_id=${clientId}` +
@@ -103,13 +104,28 @@ async function codexOAuthLogin(env = process.env, port = 1455): Promise<GlobalCo
               </html>
             `);
 
-            // In a real CLI using PKCE, we'd exchange for an access token.
-            // Tagging with "sk-codex-" helps the scanner know this is a proxy token.
-            const token = `sk-codex-${code.slice(0, 15)}`;
-            const updated: GlobalConfig = { ...current, apiKey: token };
+            const tokens = await exchangeCodeForTokens({
+              code,
+              codeVerifier,
+              clientId,
+              redirectUri: `http://localhost:${port}/auth/callback`
+            });
+
+            if (!tokens.id_token) {
+              throw new Error("OAuth token exchange did not return an id_token.");
+            }
+
+            const updated: GlobalConfig = {
+              ...current,
+              apiKey: tokens.id_token,
+              baseUrl: proxyBaseUrl,
+              apiType: "responses",
+              authMode: "oauth"
+            };
             await saveGlobalConfig(updated, env);
 
             console.log(`\n✅ Successfully authenticated with OpenAI/Codex.`);
+            console.log(`   Proxy base URL set to ${proxyBaseUrl}`);
 
             server.close();
             resolve(updated);
@@ -131,4 +147,40 @@ async function codexOAuthLogin(env = process.env, port = 1455): Promise<GlobalCo
       exec(`open "${authUrl}"`);
     });
   });
+}
+
+type OAuthTokenResponse = {
+  access_token?: string;
+  refresh_token?: string;
+  id_token?: string;
+  token_type?: string;
+  expires_in?: number;
+};
+
+async function exchangeCodeForTokens(params: {
+  code: string;
+  codeVerifier: string;
+  clientId: string;
+  redirectUri: string;
+}): Promise<OAuthTokenResponse> {
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    client_id: params.clientId,
+    code_verifier: params.codeVerifier,
+    code: params.code,
+    redirect_uri: params.redirectUri
+  });
+
+  const res = await fetch("https://auth.openai.com/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`OAuth token exchange failed: ${res.status} ${text}`);
+  }
+
+  return res.json();
 }

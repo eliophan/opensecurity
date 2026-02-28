@@ -7,6 +7,7 @@ export type GlobalConfig = {
   baseUrl?: string;
   model?: string;
   apiType?: "responses" | "chat";
+  authMode?: "oauth" | "api_key";
 };
 
 export type ProjectConfig = {
