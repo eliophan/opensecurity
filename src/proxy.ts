@@ -12,6 +12,7 @@ const DEFAULT_OPENAI_BASE = "https://api.openai.com";
 export async function startProxyServer(options: ProxyOptions = {}): Promise<void> {
   const port = options.port ?? Number(process.env.OPENSECURITY_PROXY_PORT ?? DEFAULT_PORT);
   const openaiBase = process.env.OPENSECURITY_OPENAI_BASE ?? DEFAULT_OPENAI_BASE;
+  const proxyApiKey = process.env.OPENSECURITY_PROXY_API_KEY;
 
   const server = http.createServer(async (req, res) => {
     try {
@@ -36,7 +37,7 @@ export async function startProxyServer(options: ProxyOptions = {}): Promise<void
       }
 
       const bearerToken = auth.slice("Bearer ".length).trim();
-      const apiKey = resolveApiKey(bearerToken);
+      const apiKey = resolveApiKey(bearerToken, proxyApiKey);
 
       const body = await readRequestBody(req);
       const upstreamUrl = `${openaiBase}${url.pathname}${url.search}`;
@@ -66,7 +67,15 @@ export async function startProxyServer(options: ProxyOptions = {}): Promise<void
   console.log("Forwarding OpenAI API requests for Codex OAuth tokens.");
 }
 
-function resolveApiKey(token: string): string {
+function resolveApiKey(token: string, proxyApiKey?: string): string {
+  if (proxyApiKey && proxyApiKey.trim()) {
+    return proxyApiKey.trim();
+  }
+
+  if (!token.startsWith("sk-")) {
+    throw new Error("Proxy requires OPENSECURITY_PROXY_API_KEY to call OpenAI with OAuth tokens.");
+  }
+
   return token;
 }
 

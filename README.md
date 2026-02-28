@@ -30,7 +30,11 @@ npm run proxy
 
 You can override the proxy URL with `OPENSECURITY_PROXY_URL` if needed.
 
-If you see a missing scope error (e.g., `api.responses.write`), re-run login so the OAuth request includes that scope, and confirm your OpenAI org/project role allows API access.
+Because the Codex OAuth client does not grant API scopes, the proxy must call OpenAI with its own API key. Set it in the proxy process:
+
+```bash
+OPENSECURITY_PROXY_API_KEY=sk-... npm run proxy
+```
 
 If you are in a headless environment or cannot open a browser, use **Option 2** and paste an API key instead.
 
