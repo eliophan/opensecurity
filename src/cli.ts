@@ -19,9 +19,10 @@ program
   .command("login")
   .description("Store Codex Access Token in global config")
   .option("--mode <mode>", "oauth|api_key")
+  .option("--model <model>", "set default model")
   .action(async (opts) => {
     try {
-      await login(process.env, opts.mode);
+      await login(process.env, opts.mode, opts.model);
     } catch (err: any) {
       console.error(err?.message ?? err);
       process.exitCode = 1;

@@ -25,13 +25,17 @@ export async function saveMockToken(token: string, env = process.env): Promise<G
 
 type LoginMode = "oauth" | "api_key";
 
-export async function login(env = process.env, mode?: LoginMode): Promise<GlobalConfig> {
+export async function login(
+  env = process.env,
+  mode?: LoginMode,
+  model?: string
+): Promise<GlobalConfig> {
   console.log("\n\x1b[32m\u25C7\x1b[0m  \x1b[1mOpenSecurity Authentication\x1b[0m");
   if (mode === "api_key") {
-    return loginWithApiKey(env);
+    return loginWithApiKey(env, model);
   }
   if (mode === "oauth") {
-    return loginWithOAuth(env);
+    return loginWithOAuth(env, model);
   }
 
   console.log("   Please choose your authentication method:\n");
@@ -41,49 +45,55 @@ export async function login(env = process.env, mode?: LoginMode): Promise<Global
   const choice = await askQuestion("Select option (1 or 2): ");
 
   if (choice === "2") {
-    return loginWithApiKey(env);
+    return loginWithApiKey(env, model);
   }
 
   // Option 1: Codex OAuth (Default)
-  return loginWithOAuth(env);
+  return loginWithOAuth(env, model);
 }
 
-async function loginWithApiKey(env = process.env): Promise<GlobalConfig> {
+async function loginWithApiKey(env = process.env, model?: string): Promise<GlobalConfig> {
     const key = await askQuestion("Enter your OpenAI API Key (sk-...): ");
     if (!key.startsWith("sk-")) {
       console.error("\x1b[31mError: Invalid OpenAI API key format.\x1b[0m");
       process.exit(1);
     }
     const current = await loadGlobalConfig(env);
-    const updated: GlobalConfig = { ...current, apiKey: key, authMode: "api_key" };
+    const updated: GlobalConfig = {
+      ...current,
+      apiKey: key,
+      authMode: "api_key",
+      model: model ?? current.model
+    };
     await saveGlobalConfig(updated, env);
     console.log("\n✅ Successfully saved OpenAI API Key.");
     return updated;
 }
 
-async function loginWithOAuth(env = process.env): Promise<GlobalConfig> {
+async function loginWithOAuth(env = process.env, model?: string): Promise<GlobalConfig> {
   const provider = (env.OPENSECURITY_OAUTH_PROVIDER ?? "codex-cli") as "codex-cli" | "proxy";
   if (provider === "codex-cli") {
-    return codexCliOAuthLogin(env);
+    return codexCliOAuthLogin(env, model);
   }
-  return codexOAuthLogin(env);
+  return codexOAuthLogin(env, model);
 }
 
-async function codexCliOAuthLogin(env = process.env): Promise<GlobalConfig> {
+async function codexCliOAuthLogin(env = process.env, model?: string): Promise<GlobalConfig> {
   await runCodexLogin();
   const current = await loadGlobalConfig(env);
   const updated: GlobalConfig = {
     ...current,
     authMode: "oauth",
     oauthProvider: "codex-cli",
-    authProfileId: "codex-cli"
+    authProfileId: "codex-cli",
+    model: model ?? current.model
   };
   await saveGlobalConfig(updated, env);
   console.log("\n✅ Successfully authenticated with OpenAI/Codex via codex CLI.");
   return updated;
 }
 
-async function codexOAuthLogin(env = process.env, port = 1455): Promise<GlobalConfig> {
+async function codexOAuthLogin(env = process.env, model?: string, port = 1455): Promise<GlobalConfig> {
   const current = await loadGlobalConfig(env);
 
   console.log("\n\x1b[32m\u25C7\x1b[0m  \x1b[1mOpenAI Codex OAuth\x1b[0m");
@@ -174,7 +184,8 @@ async function codexOAuthLogin(env = process.env, port = 1455): Promise<GlobalCo
               apiType: "responses",
               authMode: "oauth",
               authProfileId: "codex",
-              oauthProvider: "proxy"
+              oauthProvider: "proxy",
+              model: model ?? current.model
             };
             await saveGlobalConfig(updated, env);
 
