@@ -12,10 +12,6 @@
         "Linters",
         "Other"
     ],
-    "activationEvents": [
-        "onCommand:opensecurity.scan",
-        "onCommand:opensecurity.clearDiagnostics"
-    ],
     "main": "./out/extension.js",
     "contributes": {
         "commands": [
