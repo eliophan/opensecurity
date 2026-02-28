@@ -1,6 +1,6 @@
 # opensecurity
 
-CLI skeleton for openSecurity.
+CLI security scanner for open-source projects.
 
 ## Commands
 
@@ -17,6 +17,7 @@ CLI skeleton for openSecurity.
   - `--dependency-only` to run only dependency/CVE scanning
   - `--no-ai` to skip AI model scanning
   - `--cwd <path>` to override working directory
+- `opensecurity telemetry on|off` — enable/disable anonymous telemetry
 
 ## Config
 
@@ -26,6 +27,41 @@ CLI skeleton for openSecurity.
   - `cveCachePath`: path to CVE cache JSON (relative to project root)
   - `cveApiUrl`: CVE API URL
   - `dataSensitivity`: low|medium|high
+
+## Integrations
+
+### GitHub Actions
+
+A built-in workflow scans every PR automatically. Copy `.github/workflows/security-scan.yml` to your repo.
+
+Set `OPENAI_API_KEY` as a repository secret for AI-powered scanning. Without it, the scan runs in static-analysis-only mode (`--no-ai`).
+
+### PR Comment Reporter
+
+The `pr-comment.ts` script converts JSON scan results into a rich Markdown summary posted as a PR comment. It includes severity tables, grouped findings, package info, and patch recommendations.
+
+```bash
+node dist/pr-comment.js scan-results.json > comment.md
+```
+
+### VS Code Extension
+
+See [`vscode-extension/README.md`](vscode-extension/README.md) for setup. Features:
+- Quick scan via command palette
+- Inline diagnostics in the Problems panel
+- Optional scan-on-save
+
+## Telemetry
+
+Telemetry is **opt-in** and disabled by default. Enable it with:
+
+```bash
+opensecurity telemetry on
+```
+
+Or via environment variable: `OPENSECURITY_TELEMETRY=1`
+
+Only anonymous, non-identifying metadata is collected (OS, arch, Node version, finding counts). No source code or secrets are ever sent.
 
 ## CVE Cache
 
@@ -48,3 +84,5 @@ Schema (array of objects):
 
 - `npm run dev`
 - `npm run test`
+- `npm run build`
+
