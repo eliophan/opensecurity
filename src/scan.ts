@@ -82,8 +82,10 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   if (!options.dependencyOnly) {
     let totalEstimatedTokens = 0;
     for (const filePath of files) {
-      const content = await fs.readFile(filePath, "utf8");
-      totalEstimatedTokens += Math.ceil(content.length / CHARS_PER_TOKEN);
+      if (isAnalyzableFile(filePath)) {
+        const content = await fs.readFile(filePath, "utf8");
+        totalEstimatedTokens += Math.ceil(content.length / CHARS_PER_TOKEN);
+      }
     }
 
     if (apiKey && !options.noAi && totalEstimatedTokens > MAX_ESTIMATED_TOKENS) {
@@ -92,8 +94,11 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
 
     for (const filePath of files) {
       const relPath = path.relative(cwd, filePath);
+      const isCode = isAnalyzableFile(filePath);
       const content = await fs.readFile(filePath, "utf8");
-      if (isAnalyzableFile(filePath)) {
+
+      if (isCode) {
+        // Static Rule Engine (Babel/AST)
         const parsed = parseSource(content, relPath);
         const ruleFindings = runRuleEngine(parsed.ast, relPath, rules);
         for (const finding of ruleFindings) {
@@ -109,9 +114,10 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
           });
         }
       }
-      const chunks = chunkText(content, maxChars);
 
-      if (apiKey && !options.noAi) {
+      // AI Analysis
+      if (apiKey && !options.noAi && isCode) {
+        const chunks = chunkText(content, maxChars);
         for (let i = 0; i < chunks.length; i += 1) {
           const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
           tasks.push(async () => {
