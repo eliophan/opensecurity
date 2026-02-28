@@ -30,6 +30,8 @@ npm run proxy
 
 You can override the proxy URL with `OPENSECURITY_PROXY_URL` if needed.
 
+If you see a missing scope error (e.g., `api.responses.write`), re-run login so the OAuth request includes that scope, and confirm your OpenAI org/project role allows API access.
+
 If you are in a headless environment or cannot open a browser, use **Option 2** and paste an API key instead.
 
 ## Examples

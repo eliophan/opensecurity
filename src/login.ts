@@ -65,7 +65,7 @@ async function codexOAuthLogin(env = process.env, port = 1455): Promise<GlobalCo
   const authUrl = `https://auth.openai.com/oauth/authorize?response_type=code` +
     `&client_id=${clientId}` +
     `&redirect_uri=${redirectUri}` +
-    `&scope=openid+profile+email+offline_access` +
+    `&scope=openid+profile+email+offline_access+api.responses.write` +
     `&code_challenge=${codeChallenge}` +
     `&code_challenge_method=S256` +
     `&state=${state}` +
