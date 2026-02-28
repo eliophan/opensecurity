@@ -3,6 +3,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import { exec } from "node:child_process";
 import { loadGlobalConfig, saveGlobalConfig, type GlobalConfig } from "./config.js";
+import { saveOAuthProfile } from "./oauthStore.js";
 
 export function askQuestion(question: string): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -128,12 +129,29 @@ async function codexOAuthLogin(env = process.env, port = 1455): Promise<GlobalCo
               throw new Error("OAuth token exchange did not return an access_token.");
             }
 
+            const expiresAt = tokens.expires_in
+              ? Date.now() + tokens.expires_in * 1000
+              : undefined;
+
+            await saveOAuthProfile(
+              {
+                provider: "codex",
+                accessToken: tokens.access_token,
+                refreshToken: tokens.refresh_token,
+                tokenType: tokens.token_type,
+                scope: tokens.scope,
+                expiresAt,
+                obtainedAt: Date.now()
+              },
+              env
+            );
+
             const updated: GlobalConfig = {
               ...current,
-              apiKey: tokens.access_token,
               baseUrl: proxyBaseUrl,
               apiType: "responses",
-              authMode: "oauth"
+              authMode: "oauth",
+              authProfileId: "codex"
             };
             await saveGlobalConfig(updated, env);
 
@@ -168,6 +186,7 @@ type OAuthTokenResponse = {
   id_token?: string;
   token_type?: string;
   expires_in?: number;
+  scope?: string;
 };
 
 async function exchangeCodeForTokens(params: {

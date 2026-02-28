@@ -8,6 +8,7 @@ export type GlobalConfig = {
   model?: string;
   apiType?: "responses" | "chat";
   authMode?: "oauth" | "api_key";
+  authProfileId?: string;
 };
 
 export type ProjectConfig = {

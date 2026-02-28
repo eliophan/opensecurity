@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { loadGlobalConfig, loadProjectConfig, resolveProjectFilters } from "./config.js";
+import { getOAuthProfile, isTokenExpired, saveOAuthProfile, type OAuthProfile } from "./oauthStore.js";
 import { walkFiles } from "./fileWalker.js";
 import { parseSource } from "./analysis/ast.js";
 import { runRuleEngine } from "./analysis/rules.js";
@@ -76,7 +77,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   if (options.dryRun) {
     return { findings: [] };
   }
-  const apiKey = globalConfig.apiKey?.trim();
+  const apiKey = await resolveAuthToken(globalConfig);
   const findings: Finding[] = [];
 
   if (authMode === "oauth" && baseUrl.includes("api.openai.com")) {
@@ -234,6 +235,76 @@ type CallModelParams = {
   model: string;
   prompt: string;
 };
+
+async function resolveAuthToken(globalConfig: {
+  apiKey?: string;
+  authMode?: "oauth" | "api_key";
+  authProfileId?: string;
+}): Promise<string | undefined> {
+  if (globalConfig.authMode !== "oauth") {
+    return globalConfig.apiKey?.trim();
+  }
+
+  const profileId = globalConfig.authProfileId ?? "codex";
+  const profile = await getOAuthProfile(profileId);
+  if (!profile) {
+    throw new Error("No OAuth profile found. Run login with --mode oauth.");
+  }
+
+  if (!isTokenExpired(profile)) {
+    return profile.accessToken;
+  }
+
+  if (!profile.refreshToken) {
+    throw new Error("OAuth token expired and no refresh token is available. Run login again.");
+  }
+
+  const refreshed = await refreshAccessToken(profile);
+  await saveOAuthProfile(refreshed);
+  return refreshed.accessToken;
+}
+
+async function refreshAccessToken(profile: OAuthProfile): Promise<OAuthProfile> {
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    client_id: "app_EMoamEEZ73f0CkXaXp7hrann",
+    refresh_token: profile.refreshToken ?? ""
+  });
+
+  const res = await fetch("https://auth.openai.com/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`OAuth refresh failed: ${res.status} ${text}`);
+  }
+
+  const data = (await res.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+    token_type?: string;
+    expires_in?: number;
+    scope?: string;
+  };
+
+  if (!data.access_token) {
+    throw new Error("OAuth refresh did not return an access_token.");
+  }
+
+  const expiresAt = data.expires_in ? Date.now() + data.expires_in * 1000 : undefined;
+  return {
+    ...profile,
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token ?? profile.refreshToken,
+    tokenType: data.token_type ?? profile.tokenType,
+    scope: data.scope ?? profile.scope,
+    expiresAt,
+    obtainedAt: Date.now()
+  };
+}
 
 async function callModel(params: CallModelParams): Promise<string> {
   const { apiKey, baseUrl, apiType, model, prompt } = params;
