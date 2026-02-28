@@ -9,6 +9,7 @@ export type GlobalConfig = {
   apiType?: "responses" | "chat";
   authMode?: "oauth" | "api_key";
   authProfileId?: string;
+  oauthProvider?: "codex-cli" | "proxy";
 };
 
 export type ProjectConfig = {

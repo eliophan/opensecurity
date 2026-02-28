@@ -66,6 +66,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
 
   const baseUrl = globalConfig.baseUrl ?? "https://api.openai.com/v1/responses";
   const authMode = globalConfig.authMode;
+  const oauthProvider = globalConfig.oauthProvider ?? "proxy";
   const apiType = globalConfig.apiType ?? "responses";
   const model = options.model ?? globalConfig.model ?? "gpt-4o-mini";
   const maxChars = options.maxChars ?? DEFAULT_MAX_CHARS;
@@ -77,10 +78,11 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   if (options.dryRun) {
     return { findings: [] };
   }
-  const apiKey = await resolveAuthToken(globalConfig);
+  const useCodexCli = authMode === "oauth" && oauthProvider === "codex-cli";
+  const apiKey = useCodexCli ? undefined : await resolveAuthToken(globalConfig);
   const findings: Finding[] = [];
 
-  if (authMode === "oauth" && baseUrl.includes("api.openai.com")) {
+  if (authMode === "oauth" && oauthProvider !== "codex-cli" && baseUrl.includes("api.openai.com")) {
     throw new Error("OAuth mode requires a backend/proxy. Set OPENSECURITY_PROXY_URL or configure baseUrl to your backend.");
   }
 
@@ -123,22 +125,24 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
       }
 
       // AI Analysis
-      if (apiKey && !options.noAi && isCode) {
+      if ((apiKey || useCodexCli) && !options.noAi && isCode) {
         const chunks = chunkText(content, maxChars);
         for (let i = 0; i < chunks.length; i += 1) {
           const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
           tasks.push(async () => {
-            const responseText = await callModelWithRetry(
-              {
-                apiKey,
-                baseUrl,
-                apiType,
-                model,
-                prompt
-              },
-              maxRetries,
-              retryDelayMs
-            );
+            const responseText = useCodexCli
+              ? await callCodexCli({ model, prompt })
+              : await callModelWithRetry(
+                  {
+                    apiKey: apiKey!,
+                    baseUrl,
+                    apiType,
+                    model,
+                    prompt
+                  },
+                  maxRetries,
+                  retryDelayMs
+                );
 
             const parsed = extractJson(responseText);
             if (!parsed?.findings) return;
@@ -236,6 +240,11 @@ type CallModelParams = {
   prompt: string;
 };
 
+type CodexCliParams = {
+  model: string;
+  prompt: string;
+};
+
 async function resolveAuthToken(globalConfig: {
   apiKey?: string;
   authMode?: "oauth" | "api_key";
@@ -262,6 +271,31 @@ async function resolveAuthToken(globalConfig: {
   const refreshed = await refreshAccessToken(profile);
   await saveOAuthProfile(refreshed);
   return refreshed.accessToken;
+}
+
+async function callCodexCli(params: CodexCliParams): Promise<string> {
+  const { model, prompt } = params;
+  const { execFile } = await import("node:child_process");
+
+  return new Promise((resolve, reject) => {
+    const args = [
+      "exec",
+      "--skip-git-repo-check",
+      "--sandbox",
+      "read-only",
+      "--model",
+      model,
+      prompt
+    ];
+
+    execFile("codex", args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        reject(new Error(`codex exec failed: ${stderr || err.message}`));
+        return;
+      }
+      resolve(String(stdout ?? ""));
+    });
+  });
 }
 
 async function refreshAccessToken(profile: OAuthProfile): Promise<OAuthProfile> {

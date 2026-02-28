@@ -1,7 +1,7 @@
 import readline from "node:readline";
 import http from "node:http";
 import crypto from "node:crypto";
-import { exec } from "node:child_process";
+import { exec, spawn } from "node:child_process";
 import { loadGlobalConfig, saveGlobalConfig, type GlobalConfig } from "./config.js";
 import { saveOAuthProfile } from "./oauthStore.js";
 
@@ -31,7 +31,7 @@ export async function login(env = process.env, mode?: LoginMode): Promise<Global
     return loginWithApiKey(env);
   }
   if (mode === "oauth") {
-    return codexOAuthLogin(env);
+    return loginWithOAuth(env);
   }
 
   console.log("   Please choose your authentication method:\n");
@@ -45,7 +45,7 @@ export async function login(env = process.env, mode?: LoginMode): Promise<Global
   }
 
   // Option 1: Codex OAuth (Default)
-  return codexOAuthLogin(env);
+  return loginWithOAuth(env);
 }
 
 async function loginWithApiKey(env = process.env): Promise<GlobalConfig> {
@@ -59,6 +59,28 @@ async function loginWithApiKey(env = process.env): Promise<GlobalConfig> {
     await saveGlobalConfig(updated, env);
     console.log("\n✅ Successfully saved OpenAI API Key.");
     return updated;
+}
+
+async function loginWithOAuth(env = process.env): Promise<GlobalConfig> {
+  const provider = (env.OPENSECURITY_OAUTH_PROVIDER ?? "codex-cli") as "codex-cli" | "proxy";
+  if (provider === "codex-cli") {
+    return codexCliOAuthLogin(env);
+  }
+  return codexOAuthLogin(env);
+}
+
+async function codexCliOAuthLogin(env = process.env): Promise<GlobalConfig> {
+  await runCodexLogin();
+  const current = await loadGlobalConfig(env);
+  const updated: GlobalConfig = {
+    ...current,
+    authMode: "oauth",
+    oauthProvider: "codex-cli",
+    authProfileId: "codex-cli"
+  };
+  await saveGlobalConfig(updated, env);
+  console.log("\n✅ Successfully authenticated with OpenAI/Codex via codex CLI.");
+  return updated;
 }
 
 async function codexOAuthLogin(env = process.env, port = 1455): Promise<GlobalConfig> {
@@ -151,7 +173,8 @@ async function codexOAuthLogin(env = process.env, port = 1455): Promise<GlobalCo
               baseUrl: proxyBaseUrl,
               apiType: "responses",
               authMode: "oauth",
-              authProfileId: "codex"
+              authProfileId: "codex",
+              oauthProvider: "proxy"
             };
             await saveGlobalConfig(updated, env);
 
@@ -176,6 +199,17 @@ async function codexOAuthLogin(env = process.env, port = 1455): Promise<GlobalCo
 
     server.listen(port, () => {
       exec(`open "${authUrl}"`);
+    });
+  });
+}
+
+function runCodexLogin(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("codex", ["login"], { stdio: "inherit" });
+    proc.on("error", reject);
+    proc.on("exit", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`codex login failed with exit code ${code ?? "unknown"}`));
     });
   });
 }
