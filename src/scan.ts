@@ -291,20 +291,40 @@ async function callCodexCli(params: CodexCliParams): Promise<string> {
       "--skip-git-repo-check",
       "--sandbox",
       "read-only",
-      ...(provider ? ["--provider", provider] : []),
-      ...(model ? ["--model", model] : []),
-      ...(extraArgs ?? []),
-      prompt
     ];
 
-    execFile("codex", args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) {
-        reject(new Error(`codex exec failed: ${stderr || err.message}`));
-        return;
+    execFile("codex", ["exec", "--help"], { maxBuffer: 2 * 1024 * 1024 }, (helpErr, helpOut) => {
+      const caps = parseCodexExecHelp(String(helpOut ?? ""));
+      if (provider && caps.providerFlag) {
+        args.push(caps.providerFlag, provider);
       }
-      resolve(String(stdout ?? ""));
+      if (model && caps.hasModel) {
+        args.push("--model", model);
+      }
+      if (extraArgs?.length) {
+        args.push(...extraArgs);
+      }
+      args.push(prompt);
+
+      execFile("codex", args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) {
+          reject(new Error(`codex exec failed: ${stderr || err.message}`));
+          return;
+        }
+        resolve(String(stdout ?? ""));
+      });
     });
   });
+}
+
+function parseCodexExecHelp(helpText: string): { providerFlag?: string; hasModel: boolean } {
+  const hasLocalProvider = helpText.includes("--local-provider");
+  const hasProvider = helpText.includes("--provider");
+  const hasModel = helpText.includes("--model");
+  return {
+    providerFlag: hasLocalProvider ? "--local-provider" : hasProvider ? "--provider" : undefined,
+    hasModel
+  };
 }
 
 function resolveCodexProvider(): string | undefined {
