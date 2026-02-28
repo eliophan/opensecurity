@@ -3,6 +3,8 @@ import path from "node:path";
 import { Command } from "commander";
 import { login } from "./login.js";
 import { scan, renderJsonReport, renderTextReport, listMatchedFiles } from "./scan.js";
+import { setTelemetryEnabled, isTelemetryEnabled, trackEvent } from "./telemetry.js";
+import { loadGlobalConfig } from "./config.js";
 
 const program = new Command();
 
@@ -80,6 +82,30 @@ program
       });
       const output = opts.format === "json" ? renderJsonReport(result) : renderTextReport(result);
       console.log(output || "No findings.");
+
+      // Fire telemetry event (no-ops if disabled)
+      const globalCfg = await loadGlobalConfig();
+      await trackEvent("scan_completed", {
+        findings: result.findings.length,
+        format: opts.format ?? "text",
+        dependencyOnly: Boolean(opts.dependencyOnly),
+        noAi: Boolean(opts.noAi)
+      }, globalCfg);
+    } catch (err: any) {
+      console.error(err?.message ?? err);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("telemetry")
+  .description("Enable or disable anonymous telemetry")
+  .argument("<action>", "on | off")
+  .action(async (action: string) => {
+    try {
+      const enabled = action.toLowerCase() === "on";
+      await setTelemetryEnabled(enabled);
+      console.log(`Telemetry ${enabled ? "enabled" : "disabled"}.`);
     } catch (err: any) {
       console.error(err?.message ?? err);
       process.exitCode = 1;
