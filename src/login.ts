@@ -111,13 +111,13 @@ async function codexOAuthLogin(env = process.env, port = 1455): Promise<GlobalCo
               redirectUri: `http://localhost:${port}/auth/callback`
             });
 
-            if (!tokens.id_token) {
-              throw new Error("OAuth token exchange did not return an id_token.");
+            if (!tokens.access_token) {
+              throw new Error("OAuth token exchange did not return an access_token.");
             }
 
             const updated: GlobalConfig = {
               ...current,
-              apiKey: tokens.id_token,
+              apiKey: tokens.access_token,
               baseUrl: proxyBaseUrl,
               apiType: "responses",
               authMode: "oauth"

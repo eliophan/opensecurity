@@ -20,7 +20,7 @@ Use this flow when you want to sign in with your OpenAI/ChatGPT account instead 
 3. Your browser opens and completes the sign-in. The CLI listens on `http://localhost:1455/auth/callback`.
 4. The resulting token is saved to `~/.config/opensecurity/config.json` under `apiKey`.
 
-To use OAuth tokens for scanning, run the local proxy before scanning:
+To use OAuth tokens for scanning, run the local proxy before scanning (it forwards OAuth access tokens to OpenAI):
 
 ```bash
 opensecurity proxy
