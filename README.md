@@ -20,21 +20,17 @@ Use this flow when you want to sign in with your OpenAI/ChatGPT account instead 
 3. Your browser opens and completes the sign-in. The CLI listens on `http://localhost:1455/auth/callback`.
 4. The resulting token is saved to `~/.config/opensecurity/config.json` under `apiKey`.
 
-To use OAuth tokens for scanning, run the local proxy before scanning (it forwards OAuth access tokens to OpenAI):
+To use OAuth tokens for scanning, run the local backend before scanning (it validates the OAuth token and calls OpenAI with a server-side API key):
 
 ```bash
-opensecurity proxy
+OPENSECURITY_PROXY_API_KEY=sk-... opensecurity proxy
 # or
-npm run proxy
+OPENSECURITY_PROXY_API_KEY=sk-... npm run proxy
 ```
 
 You can override the proxy URL with `OPENSECURITY_PROXY_URL` if needed.
 
-Because the Codex OAuth client does not grant API scopes, the proxy must call OpenAI with its own API key. Set it in the proxy process:
-
-```bash
-OPENSECURITY_PROXY_API_KEY=sk-... npm run proxy
-```
+Because the Codex OAuth client does not grant OpenAI API scopes, the backend must call OpenAI with its own API key. Keep the key on the server, not in the CLI.
 
 If you are in a headless environment or cannot open a browser, use **Option 2** and paste an API key instead.
 

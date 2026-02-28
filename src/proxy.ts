@@ -13,6 +13,9 @@ export async function startProxyServer(options: ProxyOptions = {}): Promise<void
   const port = options.port ?? Number(process.env.OPENSECURITY_PROXY_PORT ?? DEFAULT_PORT);
   const openaiBase = process.env.OPENSECURITY_OPENAI_BASE ?? DEFAULT_OPENAI_BASE;
   const proxyApiKey = process.env.OPENSECURITY_PROXY_API_KEY;
+  if (!proxyApiKey || !proxyApiKey.trim()) {
+    throw new Error("OPENSECURITY_PROXY_API_KEY is required to run the OAuth backend.");
+  }
 
   const server = http.createServer(async (req, res) => {
     try {
@@ -38,6 +41,9 @@ export async function startProxyServer(options: ProxyOptions = {}): Promise<void
 
       const bearerToken = auth.slice("Bearer ".length).trim();
       const apiKey = resolveApiKey(bearerToken, proxyApiKey);
+      if (!bearerToken.startsWith("sk-")) {
+        await validateOauthToken(bearerToken);
+      }
 
       const body = await readRequestBody(req);
       const upstreamUrl = `${openaiBase}${url.pathname}${url.search}`;
@@ -77,6 +83,17 @@ function resolveApiKey(token: string, proxyApiKey?: string): string {
   }
 
   return token;
+}
+
+async function validateOauthToken(token: string): Promise<void> {
+  const res = await fetch("https://auth.openai.com/userinfo", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`OAuth token validation failed: ${res.status} ${text}`);
+  }
 }
 
 function readRequestBody(req: http.IncomingMessage): Promise<Buffer> {
