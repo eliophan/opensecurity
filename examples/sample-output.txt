@@ -1,0 +1,21 @@
+HIGH (3)
+- [CVE-2023-44270] Dependency postcss vulnerable (package.json)
+  Lax parsing allows unsanitized input in PostCSS
+  package: postcss@8.4.14 CVE-2023-44270 score=75
+  recommendation: Upgrade postcss to 8.4.31 or later.
+- [js-eval-injection] Eval Injection A03:2021 Injection (src/handler.ts:42)
+  Eval Injection: Tainted data reaches sink eval [A03:2021 Injection]
+- [js-ssrf] Server-Side Request Forgery A10:2021 Server-Side Request Forgery (src/api/proxy.ts:18)
+  Server-Side Request Forgery: Tainted data reaches sink fetch [A10:2021 Server-Side Request Forgery]
+
+MEDIUM (1)
+- [CVE-2024-28863] Dependency tar vulnerable (package.json)
+  Denial of service via crafted tar archive
+  package: tar@6.1.11 CVE-2024-28863 score=45
+  recommendation: Upgrade tar to 6.2.1 or later.
+
+LOW (1)
+- [CVE-2022-25883] Dependency semver vulnerable (package.json)
+  ReDoS vulnerability in semver range parsing
+  package: semver@7.3.7 CVE-2022-25883 score=20
+  recommendation: Upgrade semver to 7.5.2 or later.

@@ -73,6 +73,13 @@ Schema (array of objects):
 - `exploitability` ("low" | "medium" | "high", optional)
 - `privilegeRequired` ("none" | "low" | "high", optional)
 
+## Examples
+
+Check the `examples/` directory for sample reports:
+- [Sample JSON Output](examples/sample-output.json)
+- [Sample Text Output](examples/sample-output.txt)
+- [Sample PR Comment Markdown](examples/sample-pr-comment.md)
+
 ## Dev
 
 - `npm run dev`

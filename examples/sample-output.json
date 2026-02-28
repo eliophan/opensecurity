@@ -1,0 +1,63 @@
+{
+    "findings": [
+        {
+            "id": "CVE-2023-44270",
+            "severity": "high",
+            "title": "Dependency postcss vulnerable",
+            "description": "Lax parsing allows unsanitized input in PostCSS",
+            "file": "package.json",
+            "category": "dependency",
+            "packageName": "postcss",
+            "packageVersion": "8.4.14",
+            "cveId": "CVE-2023-44270",
+            "riskScore": 75,
+            "recommendation": "Upgrade postcss to 8.4.31 or later."
+        },
+        {
+            "id": "js-eval-injection",
+            "severity": "high",
+            "title": "Eval Injection",
+            "description": "Eval Injection: Tainted data reaches sink eval [A03:2021 Injection]",
+            "file": "src/handler.ts",
+            "line": 42,
+            "owasp": "A03:2021 Injection",
+            "category": "code"
+        },
+        {
+            "id": "js-ssrf",
+            "severity": "high",
+            "title": "Server-Side Request Forgery",
+            "description": "Server-Side Request Forgery: Tainted data reaches sink fetch [A10:2021 Server-Side Request Forgery]",
+            "file": "src/api/proxy.ts",
+            "line": 18,
+            "owasp": "A10:2021 Server-Side Request Forgery",
+            "category": "code"
+        },
+        {
+            "id": "CVE-2024-28863",
+            "severity": "medium",
+            "title": "Dependency tar vulnerable",
+            "description": "Denial of service via crafted tar archive",
+            "file": "package.json",
+            "category": "dependency",
+            "packageName": "tar",
+            "packageVersion": "6.1.11",
+            "cveId": "CVE-2024-28863",
+            "riskScore": 45,
+            "recommendation": "Upgrade tar to 6.2.1 or later."
+        },
+        {
+            "id": "CVE-2022-25883",
+            "severity": "low",
+            "title": "Dependency semver vulnerable",
+            "description": "ReDoS vulnerability in semver range parsing",
+            "file": "package.json",
+            "category": "dependency",
+            "packageName": "semver",
+            "packageVersion": "7.3.7",
+            "cveId": "CVE-2022-25883",
+            "riskScore": 20,
+            "recommendation": "Upgrade semver to 7.5.2 or later."
+        }
+    ]
+}
