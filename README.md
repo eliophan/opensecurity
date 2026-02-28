@@ -42,6 +42,29 @@ npm run dev -- login --mode oauth
 npm run dev -- scan --auth oauth --verbose
 ```
 
+## Download, Use, Update
+
+### Install (global)
+
+```bash
+npm install -g opensecurity
+opensecurity login --mode oauth
+opensecurity scan --auth oauth
+```
+
+### Run without install
+
+```bash
+npx opensecurity login --mode oauth
+npx opensecurity scan --auth oauth
+```
+
+### Update
+
+```bash
+npm update -g opensecurity
+```
+
 Scan the sample project:
 ```bash
 npm run dev -- scan --auth oauth --cwd examples --verbose
