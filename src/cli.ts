@@ -16,11 +16,11 @@ program
 
 program
   .command("login")
-  .description("Store OpenAI API key in global config")
+  .description("Store Codex Access Token in global config")
   .action(async () => {
     try {
       await login();
-      console.log("Saved API key to global config.");
+      console.log("Saved Codex token to global config.");
     } catch (err: any) {
       console.error(err?.message ?? err);
       process.exitCode = 1;

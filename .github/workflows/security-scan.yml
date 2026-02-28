@@ -31,11 +31,11 @@ jobs:
       - name: Run security scan
         id: scan
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
         run: |
           # Run scan with JSON output, skip AI if no key
           SCAN_ARGS="--format json --cwd ${{ github.workspace }}"
-          if [ -z "$OPENAI_API_KEY" ]; then
+          if [ -z "$CODEX_API_KEY" ]; then
             SCAN_ARGS="$SCAN_ARGS --no-ai"
           fi
           node dist/cli.js scan $SCAN_ARGS > scan-results.json 2>&1 || true

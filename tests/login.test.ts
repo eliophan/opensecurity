@@ -14,7 +14,7 @@ describe("login", () => {
     const temp = await createTempDir();
     const env = {
       OPENSECURITY_CONFIG_HOME: temp,
-      OPENAI_API_KEY: "env-key"
+      CODEX_API_KEY: "env-key"
     } as NodeJS.ProcessEnv;
 
     const config = await login(env, async () => "");

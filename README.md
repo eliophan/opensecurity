@@ -34,7 +34,7 @@ CLI security scanner for open-source projects.
 
 A built-in workflow scans every PR automatically. Copy `.github/workflows/security-scan.yml` to your repo.
 
-Set `OPENAI_API_KEY` as a repository secret for AI-powered scanning. Without it, the scan runs in static-analysis-only mode (`--no-ai`).
+Set `CODEX_API_KEY` as a repository secret for AI-powered scanning. Without it, the scan runs in static-analysis-only mode (`--no-ai`).
 
 ### PR Comment Reporter
 
