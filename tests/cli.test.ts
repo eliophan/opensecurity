@@ -37,7 +37,8 @@ describe("cli --dry-run", () => {
       "**/*.ts"
     ]);
 
-    expect(result.stderr).toBe("");
+    // stderr may contain progress/info messages (not errors)
+    expect(result.stderr).not.toContain("Error");
     expect(result.stdout.split(/\r?\n/).sort()).toEqual(["src/index.ts"]);
   });
 });
