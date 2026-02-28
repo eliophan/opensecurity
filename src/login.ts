@@ -249,54 +249,25 @@ async function chooseModel(params: {
   const models =
     source === "openai" && apiKey
       ? await fetchOpenAiModels(apiKey)
-      : await fetchCodexModels();
+      : getCodexModelChoices();
 
   return promptForModel({
     current,
     models,
-    allowManual: true
+    allowManual: source === "openai"
   });
 }
 
-async function fetchCodexModels(): Promise<string[]> {
-  try {
-    const json = await execCodexModels(["--json"]);
-    const parsed = JSON.parse(json) as Array<{ id?: string } | string>;
-    const ids = parsed
-      .map((item) => (typeof item === "string" ? item : item.id))
-      .filter((id): id is string => Boolean(id));
-    return unique(ids);
-  } catch {
-    try {
-      const text = await execCodexModels([]);
-      return parseCodexModelLines(text);
-    } catch {
-      return [];
-    }
-  }
-}
-
-async function execCodexModels(args: string[]): Promise<string> {
-  const { execFile } = await import("node:child_process");
-  return new Promise((resolve, reject) => {
-    execFile("codex", ["models", ...args], { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) {
-        reject(new Error(stderr || err.message));
-        return;
-      }
-      resolve(String(stdout ?? ""));
-    });
-  });
-}
-
-function parseCodexModelLines(text: string): string[] {
-  return unique(
-    text
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => line.split(" ")[0])
-  );
+function getCodexModelChoices(): string[] {
+  return [
+    "openai-codex/gpt-5.1",
+    "openai-codex/gpt-5.1-codex-max",
+    "openai-codex/gpt-5.1-codex-mini",
+    "openai-codex/gpt-5.2",
+    "openai-codex/gpt-5.2-codex",
+    "openai-codex/gpt-5.3-codex",
+    "openai-codex/gpt-5.3-codex-spark"
+  ];
 }
 
 async function fetchOpenAiModels(apiKey: string): Promise<string[]> {
