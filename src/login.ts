@@ -341,10 +341,6 @@ async function selectFromList<T extends string | undefined>(
   message: string,
   choices: Array<{ name: string; value: T }>
 ): Promise<T> {
-  if (process.stdout.isTTY) {
-    const { default: select } = await import("@inquirer/select");
-    return select({ message, choices });
-  }
   const options = choices
     .map((c, idx) => `${idx + 1}. ${c.name}`)
     .join("\n");
