@@ -11,6 +11,27 @@ CLI security scanner for open-source projects.
    - Choose **Option 2** for Manual API Key (`sk-...`).
 4. **Scan**: `npm run dev -- scan --verbose`
 
+## OAuth Token (Codex)
+
+Use this flow when you want to sign in with your OpenAI/ChatGPT account instead of pasting an API key.
+
+1. Run `opensecurity login` (or `npm run dev -- login` during development).
+2. Choose **Option 1** for OpenAI Codex (OAuth).
+3. Your browser opens and completes the sign-in. The CLI listens on `http://localhost:1455/auth/callback`.
+4. The resulting token is saved to `~/.config/opensecurity/config.json` under `apiKey`.
+
+To use OAuth tokens for scanning, run the local proxy before scanning:
+
+```bash
+opensecurity proxy
+# or
+npm run proxy
+```
+
+You can override the proxy URL with `OPENSECURITY_PROXY_URL` if needed.
+
+If you are in a headless environment or cannot open a browser, use **Option 2** and paste an API key instead.
+
 ## Examples
 
 Run a scan on our provided vulnerable sample:
