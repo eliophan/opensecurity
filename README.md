@@ -44,13 +44,6 @@ The `pr-comment.ts` script converts JSON scan results into a rich Markdown summa
 node dist/pr-comment.js scan-results.json > comment.md
 ```
 
-### VS Code Extension
-
-See [`vscode-extension/README.md`](vscode-extension/README.md) for setup. Features:
-- Quick scan via command palette
-- Inline diagnostics in the Problems panel
-- Optional scan-on-save
-
 ## Telemetry
 
 Telemetry is **opt-in** and disabled by default. Enable it with:
