@@ -100,14 +100,26 @@ async function executeScan(opts: any) {
     log.verbose(`AI scanning: ${opts.noAi ? "disabled" : "enabled"}`);
     log.verbose(`Dependency-only: ${opts.dependencyOnly ? "yes" : "no"}`);
 
+    const liveOutput = Boolean(opts.verbose);
     const spinner = new Spinner("Running security scan…");
-    if (!isJson) spinner.start();
+    const useSpinner = !isJson && !liveOutput;
+    if (useSpinner) spinner.start();
 
     const result = await scan({
       format: opts.format,
       maxChars: opts.maxChars,
       model: opts.model,
       authMode: opts.auth,
+      liveOutput,
+      onProgress: (info) => {
+        const message = `Scanning ${info.file} (${info.fileIndex}/${info.totalFiles}) chunk ${info.chunkIndex}/${info.totalChunks}`;
+        if (useSpinner) {
+          spinner.update(message);
+        } else if (opts.verbose) {
+          log.verbose(message);
+        }
+      },
+      onOutputChunk: liveOutput && !isJson ? (chunk) => process.stderr.write(chunk) : undefined,
       cwd: opts.cwd,
       include: opts.include,
       exclude: opts.exclude,
@@ -121,7 +133,7 @@ async function executeScan(opts: any) {
     });
 
     const elapsed = Date.now() - startTime;
-    spinner.stop();
+    if (useSpinner) spinner.stop();
 
     const output = isJson ? renderJsonReport(result) : renderTextReport(result);
     console.log(output || "No findings.");

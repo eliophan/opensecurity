@@ -37,6 +37,15 @@ export type ScanOptions = {
   maxChars?: number;
   model?: string;
   authMode?: "oauth" | "api_key";
+  liveOutput?: boolean;
+  onProgress?: (info: {
+    file: string;
+    fileIndex: number;
+    totalFiles: number;
+    chunkIndex: number;
+    totalChunks: number;
+  }) => void;
+  onOutputChunk?: (chunk: string) => void;
   include?: string[];
   exclude?: string[];
   rulesPath?: string;
@@ -89,6 +98,8 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const tasks: Array<() => Promise<void>> = [];
 
   if (!options.dependencyOnly) {
+    const totalCodeFiles = files.filter((filePath) => isAnalyzableFile(filePath)).length;
+    let codeFileIndex = 0;
     let totalEstimatedTokens = 0;
     for (const filePath of files) {
       if (isAnalyzableFile(filePath)) {
@@ -107,6 +118,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
       const content = await fs.readFile(filePath, "utf8");
 
       if (isCode) {
+        codeFileIndex += 1;
         // Static Rule Engine (Babel/AST)
         const parsed = parseSource(content, relPath);
         const ruleFindings = runRuleEngine(parsed.ast, relPath, rules);
@@ -129,9 +141,26 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
         const chunks = chunkText(content, maxChars);
         for (let i = 0; i < chunks.length; i += 1) {
           const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
+          const fileIndex = codeFileIndex;
+          const chunkIndex = i + 1;
+          const totalChunks = chunks.length;
           tasks.push(async () => {
+            if (options.onProgress) {
+              options.onProgress({
+                file: relPath,
+                fileIndex,
+                totalFiles: totalCodeFiles,
+                chunkIndex,
+                totalChunks
+              });
+            }
             const parsed = useCodexCli
-              ? await callCodexCliWithRetry(prompt, maxRetries, retryDelayMs)
+              ? await callCodexCliWithRetry(
+                  prompt,
+                  maxRetries,
+                  retryDelayMs,
+                  options.liveOutput ? options.onOutputChunk : undefined
+                )
               : await (async () => {
                   const responseText = await callModelWithRetry(
                     {
@@ -249,6 +278,7 @@ type CallModelParams = {
 
 type CodexCliParams = {
   prompt: string;
+  onOutputChunk?: (chunk: string) => void;
 };
 
 async function resolveAuthToken(globalConfig: {
@@ -280,14 +310,12 @@ async function resolveAuthToken(globalConfig: {
 }
 
 async function callCodexCli(params: CodexCliParams): Promise<string> {
-  const { prompt } = params;
+  const { prompt, onOutputChunk } = params;
   const { spawn } = await import("node:child_process");
 
   return new Promise((resolve, reject) => {
     const args = [
       "exec",
-      "--approval",
-      "never",
       "--skip-git-repo-check",
       "--sandbox",
       "read-only"
@@ -299,7 +327,9 @@ async function callCodexCli(params: CodexCliParams): Promise<string> {
 
     let stdout = "";
     child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
+      const text = chunk.toString();
+      stdout += text;
+      if (onOutputChunk) onOutputChunk(text);
     });
 
     child.on("error", (err) => reject(new Error(`codex exec failed: ${err.message}`)));
@@ -316,13 +346,14 @@ async function callCodexCli(params: CodexCliParams): Promise<string> {
 async function callCodexCliWithRetry(
   prompt: string,
   maxRetries: number,
-  retryDelayMs: number
+  retryDelayMs: number,
+  onOutputChunk?: (chunk: string) => void
 ): Promise<ScanResult> {
   let attempt = 0;
   let delay = retryDelayMs;
   while (true) {
     try {
-      const output = await callCodexCli({ prompt });
+      const output = await callCodexCli({ prompt, onOutputChunk });
       const parsed = extractJson(output);
       if (!parsed) {
         throw new Error("Codex returned non-JSON output.");
