@@ -102,7 +102,7 @@ async function executeScan(opts: any) {
 
     const liveOutput = Boolean(opts.verbose);
     const spinner = new Spinner("Running security scan…");
-    const useSpinner = !isJson && !liveOutput;
+    const useSpinner = !isJson;
     if (useSpinner) spinner.start();
 
     const result = await scan({
@@ -115,11 +115,16 @@ async function executeScan(opts: any) {
         const message = `Scanning ${info.file} (${info.fileIndex}/${info.totalFiles}) chunk ${info.chunkIndex}/${info.totalChunks}`;
         if (useSpinner) {
           spinner.update(message);
-        } else if (opts.verbose) {
+        }
+        if (opts.verbose) {
           log.verbose(message);
         }
       },
-      onOutputChunk: liveOutput && !isJson ? (chunk) => process.stderr.write(chunk) : undefined,
+      onOutputChunk: liveOutput && !isJson ? (chunk) => {
+        if (useSpinner) spinner.pause();
+        process.stderr.write(chunk);
+        if (useSpinner) spinner.resume();
+      } : undefined,
       cwd: opts.cwd,
       include: opts.include,
       exclude: opts.exclude,

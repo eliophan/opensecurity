@@ -73,6 +73,23 @@ export class Spinner {
         this.message = message;
     }
 
+    pause(): void {
+        if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
+        }
+        if (this.active) {
+            this.clearLine();
+        }
+    }
+
+    resume(): void {
+        if (!this.active || !this.stream.isTTY) return;
+        if (this.timer) return;
+        this.render();
+        this.timer = setInterval(() => this.render(), SPINNER_INTERVAL);
+    }
+
     stop(finalMessage?: string): void {
         if (this.timer) {
             clearInterval(this.timer);
