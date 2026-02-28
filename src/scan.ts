@@ -130,8 +130,14 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
         for (let i = 0; i < chunks.length; i += 1) {
           const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
           tasks.push(async () => {
+            const codexModel = resolveCodexModel(options, globalConfig);
             const responseText = useCodexCli
-              ? await callCodexCli({ model, prompt })
+              ? await callCodexCli({
+                  model: codexModel,
+                  provider: resolveCodexProvider(),
+                  extraArgs: resolveCodexArgs(),
+                  prompt
+                })
               : await callModelWithRetry(
                   {
                     apiKey: apiKey!,
@@ -241,8 +247,10 @@ type CallModelParams = {
 };
 
 type CodexCliParams = {
-  model: string;
+  model?: string;
   prompt: string;
+  provider?: string;
+  extraArgs?: string[];
 };
 
 async function resolveAuthToken(globalConfig: {
@@ -274,7 +282,7 @@ async function resolveAuthToken(globalConfig: {
 }
 
 async function callCodexCli(params: CodexCliParams): Promise<string> {
-  const { model, prompt } = params;
+  const { model, prompt, provider, extraArgs } = params;
   const { execFile } = await import("node:child_process");
 
   return new Promise((resolve, reject) => {
@@ -283,8 +291,9 @@ async function callCodexCli(params: CodexCliParams): Promise<string> {
       "--skip-git-repo-check",
       "--sandbox",
       "read-only",
-      "--model",
-      model,
+      ...(provider ? ["--provider", provider] : []),
+      ...(model ? ["--model", model] : []),
+      ...(extraArgs ?? []),
       prompt
     ];
 
@@ -296,6 +305,25 @@ async function callCodexCli(params: CodexCliParams): Promise<string> {
       resolve(String(stdout ?? ""));
     });
   });
+}
+
+function resolveCodexProvider(): string | undefined {
+  return process.env.OPENSECURITY_CODEX_PROVIDER ?? "openai-codex";
+}
+
+function resolveCodexArgs(): string[] | undefined {
+  const raw = process.env.OPENSECURITY_CODEX_ARGS;
+  if (!raw) return undefined;
+  return raw.split(" ").filter(Boolean);
+}
+
+function resolveCodexModel(options: ScanOptions, globalConfig: { model?: string }): string | undefined {
+  if (options.model) return options.model;
+  const configured = globalConfig.model;
+  if (configured && configured !== "gpt-4o-mini") {
+    return configured;
+  }
+  return process.env.OPENSECURITY_CODEX_MODEL;
 }
 
 async function refreshAccessToken(profile: OAuthProfile): Promise<OAuthProfile> {
