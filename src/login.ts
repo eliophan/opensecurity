@@ -253,8 +253,7 @@ async function chooseModel(params: {
 
   return promptForModel({
     current,
-    models,
-    allowManual: source === "openai"
+    models
   });
 }
 
@@ -291,20 +290,14 @@ function unique(items: string[]): string[] {
 async function promptForModel(params: {
   current?: string;
   models: string[];
-  allowManual: boolean;
 }): Promise<string | undefined> {
-  const { current, models, allowManual } = params;
+  const { current, models } = params;
   const choices = [
     { name: `Keep current${current ? ` (${current})` : ""}`, value: undefined },
-    ...(allowManual ? [{ name: "Enter model manually", value: "manual" }] : []),
     ...models.map((id) => ({ name: id, value: id }))
   ];
 
   const selected = await selectFromList("Default model", choices);
-  if (selected === "manual") {
-    const value = await askQuestion("Model: ");
-    return value.trim() ? value.trim() : undefined;
-  }
   return selected;
 }
 
