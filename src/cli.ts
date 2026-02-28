@@ -54,6 +54,7 @@ program
   .option("--format <format>", "text|json", "text")
   .option("--max-chars <maxChars>", "max chars per chunk", (v) => Number(v), 4000)
   .option("--model <model>", "override model")
+  .option("--auth <mode>", "oauth|api_key (overrides config)")
   .option("--cwd <cwd>", "override working directory")
   .option("--include <pattern...>", "include glob patterns (overrides project config)")
   .option("--exclude <pattern...>", "exclude glob patterns (overrides project config)")
@@ -112,6 +113,7 @@ async function executeScan(opts: any) {
       format: opts.format,
       maxChars: opts.maxChars,
       model: opts.model,
+      authMode: opts.auth,
       cwd: opts.cwd,
       include: opts.include,
       exclude: opts.exclude,

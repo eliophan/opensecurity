@@ -35,6 +35,7 @@ export type ScanOptions = {
   format?: "text" | "json";
   maxChars?: number;
   model?: string;
+  authMode?: "oauth" | "api_key";
   include?: string[];
   exclude?: string[];
   rulesPath?: string;
@@ -63,6 +64,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const rules = await loadRules(options.rulesPath ?? projectConfig.rulesPath, cwd);
 
   const baseUrl = globalConfig.baseUrl ?? "https://api.openai.com/v1/responses";
+  const authMode = globalConfig.authMode;
   const apiType = globalConfig.apiType ?? "responses";
   const model = options.model ?? globalConfig.model ?? "gpt-4o-mini";
   const maxChars = options.maxChars ?? DEFAULT_MAX_CHARS;
@@ -76,6 +78,10 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   }
   const apiKey = globalConfig.apiKey?.trim();
   const findings: Finding[] = [];
+
+  if (authMode === "oauth" && baseUrl.includes("api.openai.com")) {
+    throw new Error("OAuth mode requires a backend/proxy. Set OPENSECURITY_PROXY_URL or configure baseUrl to your backend.");
+  }
 
   const tasks: Array<() => Promise<void>> = [];
 
@@ -192,7 +198,11 @@ async function resolveScanContext(options: ScanOptions, cwd: string) {
     include: options.include ?? projectConfig.include,
     exclude: options.exclude ?? projectConfig.exclude
   });
-  return { globalConfig, projectConfig, filters };
+  const mergedGlobals = {
+    ...globalConfig,
+    authMode: options.authMode ?? globalConfig.authMode
+  };
+  return { globalConfig: mergedGlobals, projectConfig, filters };
 }
 
 export function chunkText(text: string, maxChars: number): string[] {
