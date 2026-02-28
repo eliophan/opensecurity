@@ -130,27 +130,23 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
         for (let i = 0; i < chunks.length; i += 1) {
           const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
           tasks.push(async () => {
-            const codexModel = resolveCodexModel(options, globalConfig);
-            const responseText = useCodexCli
-              ? await callCodexCli({
-                  model: codexModel,
-                  provider: resolveCodexProvider(),
-                  extraArgs: resolveCodexArgs(),
-                  prompt
-                })
-              : await callModelWithRetry(
-                  {
-                    apiKey: apiKey!,
-                    baseUrl,
-                    apiType,
-                    model,
-                    prompt
-                  },
-                  maxRetries,
-                  retryDelayMs
-                );
+            const parsed = useCodexCli
+              ? await callCodexCliWithRetry(prompt, maxRetries, retryDelayMs)
+              : await (async () => {
+                  const responseText = await callModelWithRetry(
+                    {
+                      apiKey: apiKey!,
+                      baseUrl,
+                      apiType,
+                      model,
+                      prompt
+                    },
+                    maxRetries,
+                    retryDelayMs
+                  );
+                  return extractJson(responseText);
+                })();
 
-            const parsed = extractJson(responseText);
             if (!parsed?.findings) return;
             for (const finding of parsed.findings) {
               findings.push({
@@ -229,11 +225,16 @@ export function chunkText(text: string, maxChars: number): string[] {
 
 function buildPrompt(filePath: string, chunk: string, index: number, total: number): string {
   return [
-    "You are a security reviewer. Analyze the following code chunk and return JSON only.",
+    "You are a security static analysis engine.",
+    "Return JSON only.",
+    "Do not add explanations.",
+    "Do not wrap in markdown.",
+    "Do not add code fences.",
+    "",
     "Schema:",
     "{\"findings\":[{\"id\":string,\"severity\":\"low|medium|high|critical\",\"title\":string,\"description\":string,\"file\":string,\"line\":number}]}",
-    `File: ${filePath} (chunk ${index}/${total})`,
-    "Code:",
+    "",
+    `Analyze this code chunk from ${filePath} (chunk ${index}/${total}):`,
     chunk
   ].join("\n");
 }
@@ -247,10 +248,7 @@ type CallModelParams = {
 };
 
 type CodexCliParams = {
-  model?: string;
   prompt: string;
-  provider?: string;
-  extraArgs?: string[];
 };
 
 async function resolveAuthToken(globalConfig: {
@@ -282,68 +280,61 @@ async function resolveAuthToken(globalConfig: {
 }
 
 async function callCodexCli(params: CodexCliParams): Promise<string> {
-  const { model, prompt, provider, extraArgs } = params;
-  const { execFile } = await import("node:child_process");
+  const { prompt } = params;
+  const { spawn } = await import("node:child_process");
 
   return new Promise((resolve, reject) => {
     const args = [
       "exec",
+      "--approval",
+      "never",
       "--skip-git-repo-check",
       "--sandbox",
-      "read-only",
+      "read-only"
     ];
 
-    execFile("codex", ["exec", "--help"], { maxBuffer: 2 * 1024 * 1024 }, (helpErr, helpOut) => {
-      const caps = parseCodexExecHelp(String(helpOut ?? ""));
-      if (provider && caps.providerFlag) {
-        args.push(caps.providerFlag, provider);
-      }
-      if (model && caps.hasModel) {
-        args.push("--model", model);
-      }
-      if (extraArgs?.length) {
-        args.push(...extraArgs);
-      }
-      args.push(prompt);
+    const child = spawn("codex", [...args, prompt], {
+      stdio: ["ignore", "pipe", "ignore"]
+    });
 
-      execFile("codex", args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-        if (err) {
-          reject(new Error(`codex exec failed: ${stderr || err.message}`));
-          return;
-        }
-        resolve(String(stdout ?? ""));
-      });
+    let stdout = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+
+    child.on("error", (err) => reject(new Error(`codex exec failed: ${err.message}`)));
+    child.on("close", (code) => {
+      if (code && code !== 0) {
+        reject(new Error(`codex exec failed with exit code ${code}`));
+        return;
+      }
+      resolve(stdout);
     });
   });
 }
 
-function parseCodexExecHelp(helpText: string): { providerFlag?: string; hasModel: boolean } {
-  const hasLocalProvider = helpText.includes("--local-provider");
-  const hasProvider = helpText.includes("--provider");
-  const hasModel = helpText.includes("--model");
-  return {
-    providerFlag: hasLocalProvider ? "--local-provider" : hasProvider ? "--provider" : undefined,
-    hasModel
-  };
-}
-
-function resolveCodexProvider(): string | undefined {
-  return process.env.OPENSECURITY_CODEX_PROVIDER ?? "openai-codex";
-}
-
-function resolveCodexArgs(): string[] | undefined {
-  const raw = process.env.OPENSECURITY_CODEX_ARGS;
-  if (!raw) return undefined;
-  return raw.split(" ").filter(Boolean);
-}
-
-function resolveCodexModel(options: ScanOptions, globalConfig: { model?: string }): string | undefined {
-  if (options.model) return options.model;
-  const configured = globalConfig.model;
-  if (configured && configured !== "gpt-4o-mini") {
-    return configured;
+async function callCodexCliWithRetry(
+  prompt: string,
+  maxRetries: number,
+  retryDelayMs: number
+): Promise<ScanResult> {
+  let attempt = 0;
+  let delay = retryDelayMs;
+  while (true) {
+    try {
+      const output = await callCodexCli({ prompt });
+      const parsed = extractJson(output);
+      if (!parsed) {
+        throw new Error("Codex returned non-JSON output.");
+      }
+      return parsed;
+    } catch (err) {
+      if (attempt >= maxRetries) throw err;
+      await sleep(delay + Math.floor(Math.random() * 100));
+      delay = Math.max(delay * 2, retryDelayMs);
+      attempt += 1;
+    }
   }
-  return process.env.OPENSECURITY_CODEX_MODEL;
 }
 
 async function refreshAccessToken(profile: OAuthProfile): Promise<OAuthProfile> {
