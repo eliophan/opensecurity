@@ -81,12 +81,13 @@ async function loginWithOAuth(env = process.env, model?: string): Promise<Global
 async function codexCliOAuthLogin(env = process.env, model?: string): Promise<GlobalConfig> {
   await runCodexLogin();
   const current = await loadGlobalConfig(env);
+  const selectedModel = await maybeSelectModel(model);
   const updated: GlobalConfig = {
     ...current,
     authMode: "oauth",
     oauthProvider: "codex-cli",
     authProfileId: "codex-cli",
-    model: model ?? current.model
+    model: selectedModel ?? current.model
   };
   await saveGlobalConfig(updated, env);
   console.log("\n✅ Successfully authenticated with OpenAI/Codex via codex CLI.");
@@ -178,6 +179,7 @@ async function codexOAuthLogin(env = process.env, model?: string, port = 1455): 
               env
             );
 
+            const selectedModel = await maybeSelectModel(model);
             const updated: GlobalConfig = {
               ...current,
               baseUrl: proxyBaseUrl,
@@ -185,7 +187,7 @@ async function codexOAuthLogin(env = process.env, model?: string, port = 1455): 
               authMode: "oauth",
               authProfileId: "codex",
               oauthProvider: "proxy",
-              model: model ?? current.model
+              model: selectedModel ?? current.model
             };
             await saveGlobalConfig(updated, env);
 
@@ -223,6 +225,12 @@ function runCodexLogin(): Promise<void> {
       else reject(new Error(`codex login failed with exit code ${code ?? "unknown"}`));
     });
   });
+}
+
+async function maybeSelectModel(existing?: string): Promise<string | undefined> {
+  if (existing) return existing;
+  const value = await askQuestion("Default model (leave blank to keep current): ");
+  return value.trim() ? value.trim() : undefined;
 }
 
 type OAuthTokenResponse = {
