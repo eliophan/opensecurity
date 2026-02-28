@@ -341,6 +341,14 @@ async function selectFromList<T extends string | undefined>(
   message: string,
   choices: Array<{ name: string; value: T }>
 ): Promise<T> {
+  if (process.stdout.isTTY && process.stdin.isTTY) {
+    try {
+      return await interactiveSelect(message, choices);
+    } catch {
+      // fall through to numeric prompt
+    }
+  }
+
   const options = choices
     .map((c, idx) => `${idx + 1}. ${c.name}`)
     .join("\n");
@@ -350,6 +358,62 @@ async function selectFromList<T extends string | undefined>(
     return choices[index].value;
   }
   return choices[0]?.value;
+}
+
+async function interactiveSelect<T extends string | undefined>(
+  message: string,
+  choices: Array<{ name: string; value: T }>
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const readline = require("node:readline");
+    readline.emitKeypressEvents(process.stdin);
+    const wasRaw = process.stdin.isRaw;
+    process.stdin.setRawMode(true);
+
+    let index = 0;
+
+    const render = () => {
+      process.stdout.write("\x1b[2J\x1b[H");
+      process.stdout.write(`${message}\n`);
+      for (let i = 0; i < choices.length; i += 1) {
+        const prefix = i === index ? "●" : "○";
+        process.stdout.write(`${prefix} ${choices[i].name}\n`);
+      }
+      process.stdout.write("\nUse ↑/↓ to move, Enter to select.\n");
+    };
+
+    const onKeypress = (_: string, key: { name?: string; ctrl?: boolean }) => {
+      if (key.ctrl && key.name === "c") {
+        cleanup();
+        reject(new Error("Selection cancelled."));
+        return;
+      }
+      if (key.name === "down") {
+        index = (index + 1) % choices.length;
+        render();
+        return;
+      }
+      if (key.name === "up") {
+        index = (index - 1 + choices.length) % choices.length;
+        render();
+        return;
+      }
+      if (key.name === "return") {
+        const value = choices[index].value;
+        cleanup();
+        resolve(value);
+      }
+    };
+
+    const cleanup = () => {
+      process.stdin.off("keypress", onKeypress as any);
+      if (!wasRaw) process.stdin.setRawMode(false);
+      process.stdout.write("\x1b[2J\x1b[H");
+    };
+
+    process.stdin.on("keypress", onKeypress as any);
+    render();
+  });
 }
 
 type OAuthTokenResponse = {
