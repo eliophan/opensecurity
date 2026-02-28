@@ -54,6 +54,8 @@ const DEFAULT_MAX_CHARS = 4000;
 const DEFAULT_CONCURRENCY = 2;
 const DEFAULT_MAX_RETRIES = 2;
 const DEFAULT_RETRY_DELAY_MS = 500;
+const MAX_ESTIMATED_TOKENS = 50000; // Guardrail: reject massive scans
+const CHARS_PER_TOKEN = 4; // Simple heuristic for estimation
 
 export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const cwd = options.cwd ?? process.cwd();
@@ -78,6 +80,16 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const tasks: Array<() => Promise<void>> = [];
 
   if (!options.dependencyOnly) {
+    let totalEstimatedTokens = 0;
+    for (const filePath of files) {
+      const content = await fs.readFile(filePath, "utf8");
+      totalEstimatedTokens += Math.ceil(content.length / CHARS_PER_TOKEN);
+    }
+
+    if (apiKey && !options.noAi && totalEstimatedTokens > MAX_ESTIMATED_TOKENS) {
+      throw new Error(`Scan size too large: Estimated ${totalEstimatedTokens} tokens exceeds guardrail limit of ${MAX_ESTIMATED_TOKENS}. Use --no-ai or narrow your scope.`);
+    }
+
     for (const filePath of files) {
       const relPath = path.relative(cwd, filePath);
       const content = await fs.readFile(filePath, "utf8");
@@ -214,6 +226,8 @@ async function callModel(params: CallModelParams): Promise<string> {
     Authorization: `Bearer ${apiKey}`
   };
 
+  const scrub = (msg: string) => msg.replace(apiKey, "sk-***" + apiKey.slice(-4));
+
   if (apiType === "chat" || baseUrl.includes("/chat/completions")) {
     const body = JSON.stringify({
       model,
@@ -221,7 +235,10 @@ async function callModel(params: CallModelParams): Promise<string> {
       temperature: 0
     });
     const res = await fetch(baseUrl, { method: "POST", headers, body });
-    if (!res.ok) throw new Error(`Model request failed: ${res.status} ${await res.text()}`);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(scrub(`Model request failed: ${res.status} ${text}`));
+    }
     const data = await res.json();
     return data?.choices?.[0]?.message?.content ?? "";
   }
@@ -232,7 +249,10 @@ async function callModel(params: CallModelParams): Promise<string> {
     temperature: 0
   });
   const res = await fetch(baseUrl, { method: "POST", headers, body });
-  if (!res.ok) throw new Error(`Model request failed: ${res.status} ${await res.text()}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(scrub(`Model request failed: ${res.status} ${text}`));
+  }
   const data = await res.json();
   return data?.output_text ?? extractResponsesText(data);
 }
@@ -355,5 +375,7 @@ export function renderJsonReport(result: ScanResult): string {
 
 function isAnalyzableFile(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase();
-  return [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"].includes(ext);
+  // Only send text-based source files to the AI to prevent binary leakage or wasted tokens
+  const supported = [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".py", ".go", ".rs", ".java", ".c", ".cpp"];
+  return supported.includes(ext);
 }
