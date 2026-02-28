@@ -1,0 +1,62 @@
+name: OpenSecurity Scan
+
+on:
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Run security scan
+        id: scan
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # Run scan with JSON output, skip AI if no key
+          SCAN_ARGS="--format json --cwd ${{ github.workspace }}"
+          if [ -z "$OPENAI_API_KEY" ]; then
+            SCAN_ARGS="$SCAN_ARGS --no-ai"
+          fi
+          node dist/cli.js scan $SCAN_ARGS > scan-results.json 2>&1 || true
+          echo "results_file=scan-results.json" >> "$GITHUB_OUTPUT"
+
+      - name: Generate PR comment
+        id: comment
+        run: |
+          node dist/pr-comment.js scan-results.json > pr-comment.md 2>&1 || true
+          echo "comment_file=pr-comment.md" >> "$GITHUB_OUTPUT"
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: pr-comment.md
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-results
+          path: scan-results.json
+          retention-days: 30
