@@ -22,8 +22,17 @@ export async function saveMockToken(token: string, env = process.env): Promise<G
   return updated;
 }
 
-export async function login(env = process.env): Promise<GlobalConfig> {
+type LoginMode = "oauth" | "api_key";
+
+export async function login(env = process.env, mode?: LoginMode): Promise<GlobalConfig> {
   console.log("\n\x1b[32m\u25C7\x1b[0m  \x1b[1mOpenSecurity Authentication\x1b[0m");
+  if (mode === "api_key") {
+    return loginWithApiKey(env);
+  }
+  if (mode === "oauth") {
+    return codexOAuthLogin(env);
+  }
+
   console.log("   Please choose your authentication method:\n");
   console.log("   1. OpenAI Codex (OAuth) - Recommended, browser-based.");
   console.log("   2. OpenAI API Key (Manual) - Direct access to OpenAI Platform.\n");
@@ -31,6 +40,14 @@ export async function login(env = process.env): Promise<GlobalConfig> {
   const choice = await askQuestion("Select option (1 or 2): ");
 
   if (choice === "2") {
+    return loginWithApiKey(env);
+  }
+
+  // Option 1: Codex OAuth (Default)
+  return codexOAuthLogin(env);
+}
+
+async function loginWithApiKey(env = process.env): Promise<GlobalConfig> {
     const key = await askQuestion("Enter your OpenAI API Key (sk-...): ");
     if (!key.startsWith("sk-")) {
       console.error("\x1b[31mError: Invalid OpenAI API key format.\x1b[0m");
@@ -41,10 +58,6 @@ export async function login(env = process.env): Promise<GlobalConfig> {
     await saveGlobalConfig(updated, env);
     console.log("\n✅ Successfully saved OpenAI API Key.");
     return updated;
-  }
-
-  // Option 1: Codex OAuth (Default)
-  return codexOAuthLogin(env);
 }
 
 async function codexOAuthLogin(env = process.env, port = 1455): Promise<GlobalConfig> {

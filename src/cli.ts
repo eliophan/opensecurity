@@ -18,17 +18,10 @@ program
 program
   .command("login")
   .description("Store Codex Access Token in global config")
-  .action(async () => {
+  .option("--mode <mode>", "oauth|api_key")
+  .action(async (opts) => {
     try {
-      const config = await login();
-      if (config.apiKey) {
-        const { askQuestion } = await import("./login.js");
-        const ans = await askQuestion("\nDo you want to run a security scan now? (y/N) ");
-        if (ans.toLowerCase() === 'y') {
-          console.log("");
-          await executeScan({ format: "text", maxChars: 4000 });
-        }
-      }
+      await login(process.env, opts.mode);
     } catch (err: any) {
       console.error(err?.message ?? err);
       process.exitCode = 1;
