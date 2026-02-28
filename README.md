@@ -2,22 +2,37 @@
 
 CLI security scanner for open-source projects.
 
+## Getting Started
+
+1. **Install dependencies**: `npm install`
+2. **Build**: `npm run build`
+3. **Login**: `npm run dev -- login`
+   - Choose **Option 1** for OpenAI Codex (OAuth).
+   - Choose **Option 2** for Manual API Key (`sk-...`).
+4. **Scan**: `npm run dev -- scan --verbose`
+
+## Examples
+
+Run a scan on our provided vulnerable sample:
+```bash
+npm run dev -- scan --cwd examples --verbose
+```
+
+Features simulated/found in `examples/bad-code.js`:
+- SQL Injection via `sqlite3`
+- XSS via `express`
+- Insecure Cryptography using `md5`
+
 ## Commands
 
-- `opensecurity login`
-- `opensecurity scan`
-  - `--dry-run` to list matched files only
-  - `--include <pattern...>` to override include globs
-  - `--exclude <pattern...>` to override exclude globs
-  - `--rules <path>` to load a custom OWASP rule pack
-  - `--cve-cache <path>` to load CVE cache JSON
-  - `--cve-api-url <url>` to query a CVE API (optional)
-  - `--simulate` to include payload + impact simulation for dependency findings
-  - `--data-sensitivity <level>` low|medium|high for risk scoring
-  - `--dependency-only` to run only dependency/CVE scanning
-  - `--no-ai` to skip AI model scanning
-  - `--cwd <path>` to override working directory
-- `opensecurity telemetry on|off` — enable/disable anonymous telemetry
+- `opensecurity login` — Authenticate via OAuth or Manual API Key.
+- `opensecurity scan` — Run AI security scan.
+  - `--format json|text` to choose output format.
+  - `--dry-run` to list matched files only.
+  - `--no-ai` to skip AI scanning and run static checks only.
+  - `--verbose` — show detailed progress and token estimation.
+  - `--cwd <path>` to override working directory.
+- `opensecurity telemetry on|off` — enable/disable anonymous telemetry.
 
 ## Config
 
@@ -34,11 +49,11 @@ CLI security scanner for open-source projects.
 
 A built-in workflow scans every PR automatically. Copy `.github/workflows/security-scan.yml` to your repo.
 
-Set `CODEX_API_KEY` as a repository secret for AI-powered scanning. Without it, the scan runs in static-analysis-only mode (`--no-ai`).
+Set `CODEX_API_KEY` as a repository secret for AI-powered scanning.
 
 ### PR Comment Reporter
 
-The `pr-comment.ts` script converts JSON scan results into a rich Markdown summary posted as a PR comment. It includes severity tables, grouped findings, package info, and patch recommendations.
+The `pr-comment.ts` script converts JSON scan results into a rich Markdown summary posted as a PR comment.
 
 ```bash
 node dist/pr-comment.js scan-results.json > comment.md
@@ -54,8 +69,6 @@ opensecurity telemetry on
 
 Or via environment variable: `OPENSECURITY_TELEMETRY=1`
 
-Only anonymous, non-identifying metadata is collected (OS, arch, Node version, finding counts). No source code or secrets are ever sent.
-
 ## CVE Cache
 
 Sample cache: `cve-cache.json`
@@ -67,22 +80,9 @@ Schema (array of objects):
 - `affectedRange` (string, semver range)
 - `fixedVersion` (string, optional)
 - `severity` ("low" | "medium" | "high" | "critical")
-- `cvssScore` (number, optional)
-- `description` (string, optional)
-- `references` (string[], optional)
-- `exploitability` ("low" | "medium" | "high", optional)
-- `privilegeRequired` ("none" | "low" | "high", optional)
-
-## Examples
-
-Check the `examples/` directory for sample reports:
-- [Sample JSON Output](examples/sample-output.json)
-- [Sample Text Output](examples/sample-output.txt)
-- [Sample PR Comment Markdown](examples/sample-pr-comment.md)
 
 ## Dev
 
 - `npm run dev`
 - `npm run test`
 - `npm run build`
-

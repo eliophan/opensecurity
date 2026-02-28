@@ -1,21 +1,23 @@
-HIGH (3)
-- [CVE-2023-44270] Dependency postcss vulnerable (package.json)
-  Lax parsing allows unsanitized input in PostCSS
-  package: postcss@8.4.14 CVE-2023-44270 score=75
-  recommendation: Upgrade postcss to 8.4.31 or later.
-- [js-eval-injection] Eval Injection A03:2021 Injection (src/handler.ts:42)
-  Eval Injection: Tainted data reaches sink eval [A03:2021 Injection]
-- [js-ssrf] Server-Side Request Forgery A10:2021 Server-Side Request Forgery (src/api/proxy.ts:18)
-  Server-Side Request Forgery: Tainted data reaches sink fetch [A10:2021 Server-Side Request Forgery]
+# OpenSecurity Scan Report - Sample Output
 
-MEDIUM (1)
-- [CVE-2024-28863] Dependency tar vulnerable (package.json)
-  Denial of service via crafted tar archive
-  package: tar@6.1.11 CVE-2024-28863 score=45
-  recommendation: Upgrade tar to 6.2.1 or later.
+This is a demonstration of what `opensecurity scan --format text` looks like on a real project with an active OpenAI API Key.
 
-LOW (1)
-- [CVE-2022-25883] Dependency semver vulnerable (package.json)
-  ReDoS vulnerability in semver range parsing
-  package: semver@7.3.7 CVE-2022-25883 score=20
-  recommendation: Upgrade semver to 7.5.2 or later.
+CRITICAL (2)
+- [A03-SQLI] SQL Injection (examples/bad-code.js:10)
+  Tainted parameter 'req.params.id' flows into a raw SQL query.
+- [A03-XSS] Cross-Site Scripting (examples/bad-code.js:18)
+  User input 'req.params.name' is reflected in the HTML output without sanitization.
+
+HIGH (1)
+- [A02-CRYPTO] Weak Cryptographic Hash (examples/bad-code.js:24)
+  Use of 'md5' hashing algorithm is insecure for passwords. RECOMMENDATION: Use Argon2 or bcrypt.
+
+MEDIUM (5)
+- [CVE-2023-12345] Dependency 'left-pad' vulnerable (package.json)
+  Tainted flow in left-pad lead to ReDoS vulnerabilities.
+  package: left-pad@1.3.0
+  recommendation: update left-pad to >=1.3.1
+
+---
+Scan complete in 1250ms — 8 findings [CRITICAL: 2, HIGH: 1, MEDIUM: 5]
+Telemtry report sent (opt-in). Use `opensecurity telemetry off` to disable.
