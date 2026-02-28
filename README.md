@@ -175,6 +175,23 @@ node dist/cli.js scan --format json --cwd $GITHUB_WORKSPACE
 - Rule profiles
 - Language parsers beyond JS/TS
 
+## Who It’s For
+
+- Open-source maintainers who want PR/CI security checks
+- Developers who need fast, deterministic security signals
+- Teams that want AI-assisted triage without losing structured output
+
+## Contribution Rules
+
+- Keep changes small and focused; add docs for new CLI flags
+- Prefer deterministic rules over AI-only heuristics
+- Run `npm test` and `npm run lint` when touching scan logic
+- Follow existing TypeScript style (ESM, strict types)
+
+## License
+
+MIT (license file to be added).
+
 ## Security Philosophy
 
 Deterministic core. AI-enhanced reasoning. Structured output. CI-ready enforcement.
