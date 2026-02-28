@@ -53,21 +53,26 @@ export async function login(
 }
 
 async function loginWithApiKey(env = process.env, model?: string): Promise<GlobalConfig> {
-    const key = await askQuestion("Enter your OpenAI API Key (sk-...): ");
-    if (!key.startsWith("sk-")) {
-      console.error("\x1b[31mError: Invalid OpenAI API key format.\x1b[0m");
-      process.exit(1);
-    }
-    const current = await loadGlobalConfig(env);
-    const updated: GlobalConfig = {
-      ...current,
-      apiKey: key,
-      authMode: "api_key",
-      model: model ?? current.model
-    };
-    await saveGlobalConfig(updated, env);
-    console.log("\n✅ Successfully saved OpenAI API Key.");
-    return updated;
+  const key = await askQuestion("Enter your OpenAI API Key (sk-...): ");
+  if (!key.startsWith("sk-")) {
+    console.error("\x1b[31mError: Invalid OpenAI API key format.\x1b[0m");
+    process.exit(1);
+  }
+  const current = await loadGlobalConfig(env);
+  const selectedModel = await chooseModel({
+    current: model ?? current.model,
+    source: "openai",
+    apiKey: key
+  });
+  const updated: GlobalConfig = {
+    ...current,
+    apiKey: key,
+    authMode: "api_key",
+    model: selectedModel ?? current.model
+  };
+  await saveGlobalConfig(updated, env);
+  console.log("\n✅ Successfully saved OpenAI API Key.");
+  return updated;
 }
 
 async function loginWithOAuth(env = process.env, model?: string): Promise<GlobalConfig> {
@@ -81,7 +86,10 @@ async function loginWithOAuth(env = process.env, model?: string): Promise<Global
 async function codexCliOAuthLogin(env = process.env, model?: string): Promise<GlobalConfig> {
   await runCodexLogin();
   const current = await loadGlobalConfig(env);
-  const selectedModel = await maybeSelectModel(model);
+  const selectedModel = await chooseModel({
+    current: model ?? current.model,
+    source: "codex"
+  });
   const updated: GlobalConfig = {
     ...current,
     authMode: "oauth",
@@ -179,7 +187,10 @@ async function codexOAuthLogin(env = process.env, model?: string, port = 1455): 
               env
             );
 
-            const selectedModel = await maybeSelectModel(model);
+            const selectedModel = await chooseModel({
+              current: model ?? current.model,
+              source: "codex"
+            });
             const updated: GlobalConfig = {
               ...current,
               baseUrl: proxyBaseUrl,
@@ -227,10 +238,122 @@ function runCodexLogin(): Promise<void> {
   });
 }
 
-async function maybeSelectModel(existing?: string): Promise<string | undefined> {
-  if (existing) return existing;
-  const value = await askQuestion("Default model (leave blank to keep current): ");
-  return value.trim() ? value.trim() : undefined;
+type ModelSource = "codex" | "openai";
+
+async function chooseModel(params: {
+  current?: string;
+  source: ModelSource;
+  apiKey?: string;
+}): Promise<string | undefined> {
+  const { current, source, apiKey } = params;
+  const models =
+    source === "openai" && apiKey
+      ? await fetchOpenAiModels(apiKey)
+      : await fetchCodexModels();
+
+  return promptForModel({
+    current,
+    models,
+    allowManual: true
+  });
+}
+
+async function fetchCodexModels(): Promise<string[]> {
+  try {
+    const json = await execCodexModels(["--json"]);
+    const parsed = JSON.parse(json) as Array<{ id?: string } | string>;
+    const ids = parsed
+      .map((item) => (typeof item === "string" ? item : item.id))
+      .filter((id): id is string => Boolean(id));
+    return unique(ids);
+  } catch {
+    try {
+      const text = await execCodexModels([]);
+      return parseCodexModelLines(text);
+    } catch {
+      return [];
+    }
+  }
+}
+
+async function execCodexModels(args: string[]): Promise<string> {
+  const { execFile } = await import("node:child_process");
+  return new Promise((resolve, reject) => {
+    execFile("codex", ["models", ...args], { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) {
+        reject(new Error(stderr || err.message));
+        return;
+      }
+      resolve(String(stdout ?? ""));
+    });
+  });
+}
+
+function parseCodexModelLines(text: string): string[] {
+  return unique(
+    text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => line.split(" ")[0])
+  );
+}
+
+async function fetchOpenAiModels(apiKey: string): Promise<string[]> {
+  const res = await fetch("https://api.openai.com/v1/models", {
+    headers: {
+      Authorization: `Bearer ${apiKey}`
+    }
+  });
+  if (!res.ok) {
+    return [];
+  }
+  const data = (await res.json()) as { data?: Array<{ id: string }> };
+  const ids = data.data?.map((m) => m.id) ?? [];
+  return unique(ids).sort();
+}
+
+function unique(items: string[]): string[] {
+  return Array.from(new Set(items));
+}
+
+async function promptForModel(params: {
+  current?: string;
+  models: string[];
+  allowManual: boolean;
+}): Promise<string | undefined> {
+  const { current, models, allowManual } = params;
+  const choices = [
+    { name: `Keep current${current ? ` (${current})` : ""}`, value: undefined },
+    ...(allowManual ? [{ name: "Enter model manually", value: "manual" }] : []),
+    ...models.map((id) => ({ name: id, value: id }))
+  ];
+
+  const selected = await selectFromList("Default model", choices);
+  if (selected === "manual") {
+    const value = await askQuestion("Model: ");
+    return value.trim() ? value.trim() : undefined;
+  }
+  return selected;
+}
+
+async function selectFromList<T extends string | undefined>(
+  message: string,
+  choices: Array<{ name: string; value: T }>
+): Promise<T> {
+  if (process.stdout.isTTY) {
+    const { default: select } = await import("@inquirer/select");
+    return select({ message, choices });
+  }
+  const options = choices
+    .map((c, idx) => `${idx + 1}. ${c.name}`)
+    .join("\n");
+  const answer = await askQuestion(`${message}\n${options}\nSelect number: `);
+  const index = Number(answer) - 1;
+  if (Number.isFinite(index) && index >= 0 && index < choices.length) {
+    return choices[index].value;
+  }
+  return choices[0]?.value;
 }
 
 type OAuthTokenResponse = {
