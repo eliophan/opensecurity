@@ -7,6 +7,7 @@ import { startProxyServer } from "./proxy.js";
 import { scan, renderJsonReport, renderSarifReport, renderTextReport, listMatchedFiles } from "./scan.js";
 import { setTelemetryEnabled, trackEvent } from "./telemetry.js";
 import { loadGlobalConfig } from "./config.js";
+import { getOAuthProfile } from "./oauthStore.js";
 import { Logger, Spinner, formatDuration, pluralize, bold, severityColor } from "./progress.js";
 
 const program = new Command();
@@ -77,6 +78,10 @@ async function executeScan(opts: any) {
   const log = new Logger({ verbose: opts.verbose, silent: isJson });
 
   try {
+    const authMode = await resolveAuthMode(opts);
+    if (authMode) {
+      opts.auth = authMode;
+    }
     if (opts.dryRun) {
       log.info("Dry run — listing matched files…");
       const files = await listMatchedFiles({
@@ -249,4 +254,43 @@ function highestSeverity(findings: Array<{ severity: string }>): number | null {
     if (max === null || rank > max) max = rank;
   }
   return max;
+}
+
+async function resolveAuthMode(opts: any): Promise<"oauth" | "api_key" | undefined> {
+  if (opts.auth) return opts.auth;
+  const globalCfg = await loadGlobalConfig();
+  const hasApiKey = Boolean(globalCfg.apiKey);
+  const profileId = globalCfg.authProfileId ?? "codex-cli";
+  const oauthProfile = await getOAuthProfile(profileId);
+  const hasOauth = Boolean(oauthProfile);
+
+  if (hasApiKey && hasOauth) {
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      throw new Error("Multiple auth modes found. Use --auth oauth or --auth api_key.");
+    }
+    return await promptAuthMode();
+  }
+
+  if (hasOauth) return "oauth";
+  if (hasApiKey) return "api_key";
+  return undefined;
+}
+
+async function promptAuthMode(): Promise<"oauth" | "api_key"> {
+  const answer = await askQuestion(
+    "Select auth mode for this scan (1 = OAuth, 2 = API key): "
+  );
+  if (answer.trim() === "2") return "api_key";
+  return "oauth";
+}
+
+function askQuestion(question: string): Promise<string> {
+  const readline = require("node:readline");
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise((resolve) => {
+    rl.question(question, (answer: string) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
 }
