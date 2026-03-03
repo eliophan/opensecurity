@@ -31,6 +31,8 @@ export type ScanResult = {
   findings: Finding[];
 };
 
+export const SCHEMA_VERSION = "1.0.0";
+
 export type ScanOptions = {
   cwd?: string;
   format?: "text" | "json";
@@ -218,7 +220,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
 
   await runWithConcurrency(tasks, concurrency);
 
-  return { findings };
+  return { findings: dedupeFindings(findings) };
 }
 
 export async function listMatchedFiles(options: ScanOptions = {}): Promise<string[]> {
@@ -561,7 +563,40 @@ export function renderTextReport(result: ScanResult): string {
 }
 
 export function renderJsonReport(result: ScanResult): string {
-  return JSON.stringify(result, null, 2);
+  return JSON.stringify({ schemaVersion: SCHEMA_VERSION, ...result }, null, 2);
+}
+
+export function renderSarifReport(result: ScanResult): string {
+  const sarifResults = result.findings.map((finding) => {
+    const level = mapSeverityToSarif(finding.severity);
+    const message = [finding.title, finding.description].filter(Boolean).join(" — ");
+    const location: any = {
+      physicalLocation: {
+        artifactLocation: { uri: finding.file }
+      }
+    };
+    if (finding.line) {
+      location.physicalLocation.region = { startLine: finding.line };
+    }
+    return {
+      ruleId: finding.id,
+      level,
+      message: { text: message },
+      locations: [location]
+    };
+  });
+
+  const sarif = {
+    version: "2.1.0",
+    runs: [
+      {
+        tool: { driver: { name: "OpenSecurity" } },
+        results: sarifResults
+      }
+    ]
+  };
+
+  return JSON.stringify(sarif, null, 2);
 }
 
 function isAnalyzableFile(filePath: string): boolean {
@@ -569,4 +604,30 @@ function isAnalyzableFile(filePath: string): boolean {
   // Only send text-based source files to the AI to prevent binary leakage or wasted tokens
   const supported = [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".py", ".go", ".rs", ".java", ".c", ".cpp"];
   return supported.includes(ext);
+}
+
+function dedupeFindings(findings: Finding[]): Finding[] {
+  const seen = new Map<string, Finding>();
+  for (const finding of findings) {
+    const line = finding.line ?? 0;
+    const key = `${finding.file}:${line}:${finding.id}`;
+    if (!seen.has(key)) {
+      seen.set(key, finding);
+    }
+  }
+  return Array.from(seen.values());
+}
+
+function mapSeverityToSarif(severity: Severity): "error" | "warning" | "note" {
+  switch (severity) {
+    case "critical":
+    case "high":
+      return "error";
+    case "medium":
+      return "warning";
+    case "low":
+      return "note";
+    default:
+      return "note";
+  }
 }
