@@ -590,7 +590,7 @@ export function renderSarifReport(result: ScanResult): string {
     version: "2.1.0",
     runs: [
       {
-        tool: { driver: { name: "OpenSecurity" } },
+        tool: { driver: { name: "OpenSecurity", version: SCHEMA_VERSION } },
         results: sarifResults
       }
     ]

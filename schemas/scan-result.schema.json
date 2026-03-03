@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opensecurity.dev/schemas/scan-result.schema.json",
+  "title": "OpenSecurity Scan Result",
+  "type": "object",
+  "required": ["schemaVersion", "findings"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "title", "description", "file"],
+        "properties": {
+          "id": { "type": "string" },
+          "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "file": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "owasp": { "type": "string" },
+          "category": { "type": "string", "enum": ["code", "dependency"] },
+          "packageName": { "type": "string" },
+          "packageVersion": { "type": "string" },
+          "cveId": { "type": "string" },
+          "riskScore": { "type": "number" },
+          "recommendation": { "type": "string" },
+          "simulation": {
+            "type": "object",
+            "required": ["payload", "impact"],
+            "properties": {
+              "payload": { "type": "string" },
+              "impact": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
