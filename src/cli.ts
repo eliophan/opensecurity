@@ -277,11 +277,15 @@ async function resolveAuthMode(opts: any): Promise<"oauth" | "api_key" | undefin
 }
 
 async function promptAuthMode(): Promise<"oauth" | "api_key"> {
-  const answer = await askQuestion(
-    "Select auth mode for this scan (1 = OAuth, 2 = API key): "
-  );
-  if (answer.trim() === "2") return "api_key";
-  return "oauth";
+  if (process.stdin.isTTY && process.stdout.isTTY) {
+    try {
+      return await interactiveSelectAuth();
+    } catch {
+      // fall through to text prompt
+    }
+  }
+  const answer = await askQuestion("Select auth mode for this scan (oauth/api_key): ");
+  return answer.trim() === "api_key" ? "api_key" : "oauth";
 }
 
 function askQuestion(question: string): Promise<string> {
@@ -292,5 +296,62 @@ function askQuestion(question: string): Promise<string> {
       rl.close();
       resolve(answer.trim());
     });
+  });
+}
+
+async function interactiveSelectAuth(): Promise<"oauth" | "api_key"> {
+  return new Promise((resolve, reject) => {
+    const readline = require("node:readline");
+    readline.emitKeypressEvents(process.stdin);
+    const wasRaw = process.stdin.isRaw;
+    process.stdin.setRawMode(true);
+
+    const options: Array<{ label: string; value: "oauth" | "api_key" }> = [
+      { label: "OpenAI Codex OAuth", value: "oauth" },
+      { label: "OpenAI API Key", value: "api_key" }
+    ];
+    let index = 0;
+
+    const render = () => {
+      process.stdout.write("\x1b[2J\x1b[H");
+      process.stdout.write("Select auth mode for this scan\n");
+      for (let i = 0; i < options.length; i += 1) {
+        const prefix = i === index ? ">" : " ";
+        process.stdout.write(`${prefix} ${options[i].label}\n`);
+      }
+      process.stdout.write("\nUse ↑/↓ to move, Enter to select.\n");
+    };
+
+    const cleanup = () => {
+      process.stdin.off("keypress", onKeypress as any);
+      if (!wasRaw) process.stdin.setRawMode(false);
+      process.stdout.write("\x1b[2J\x1b[H");
+    };
+
+    const onKeypress = (_: string, key: { name?: string; ctrl?: boolean }) => {
+      if (key.ctrl && key.name === "c") {
+        cleanup();
+        reject(new Error("Selection cancelled."));
+        return;
+      }
+      if (key.name === "down") {
+        index = (index + 1) % options.length;
+        render();
+        return;
+      }
+      if (key.name === "up") {
+        index = (index - 1 + options.length) % options.length;
+        render();
+        return;
+      }
+      if (key.name === "return") {
+        const value = options[index].value;
+        cleanup();
+        resolve(value);
+      }
+    };
+
+    process.stdin.on("keypress", onKeypress as any);
+    render();
   });
 }
