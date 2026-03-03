@@ -37,11 +37,6 @@ export async function login(
   if (mode === "oauth") {
     return loginWithOAuth(env, model);
   }
-
-  console.log("   Please choose your authentication method:\n");
-  console.log("   1. OpenAI Codex (OAuth) - Recommended, browser-based.");
-  console.log("   2. OpenAI API Key (Manual) - Direct access to OpenAI Platform.\n");
-
   const modeChoice = await promptLoginMode();
   if (modeChoice === "api_key") {
     return loginWithApiKey(env, model);
@@ -237,7 +232,7 @@ function runCodexLogin(): Promise<void> {
 }
 
 async function promptLoginMode(): Promise<"oauth" | "api_key"> {
-  if (process.stdin.isTTY && process.stdout.isTTY) {
+  if (shouldForceInteractive() || (process.stdin.isTTY && process.stdout.isTTY)) {
     try {
       return await interactiveSelectLoginMode();
     } catch {
@@ -253,6 +248,10 @@ async function interactiveSelectLoginMode(): Promise<"oauth" | "api_key"> {
     const readline = require("node:readline");
     readline.emitKeypressEvents(process.stdin);
     const wasRaw = process.stdin.isRaw;
+    if (!process.stdin.isTTY) {
+      reject(new Error("No TTY available for interactive selection."));
+      return;
+    }
     process.stdin.setRawMode(true);
 
     const options: Array<{ label: string; value: "oauth" | "api_key" }> = [
@@ -303,6 +302,10 @@ async function interactiveSelectLoginMode(): Promise<"oauth" | "api_key"> {
     process.stdin.on("keypress", onKeypress as any);
     render();
   });
+}
+
+function shouldForceInteractive(): boolean {
+  return process.env.OPENSECURITY_FORCE_TTY === "1";
 }
 
 type ModelSource = "codex" | "openai";

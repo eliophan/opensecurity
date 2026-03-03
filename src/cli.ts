@@ -277,7 +277,7 @@ async function resolveAuthMode(opts: any): Promise<"oauth" | "api_key" | undefin
 }
 
 async function promptAuthMode(): Promise<"oauth" | "api_key"> {
-  if (process.stdin.isTTY && process.stdout.isTTY) {
+  if (shouldForceInteractive() || (process.stdin.isTTY && process.stdout.isTTY)) {
     try {
       return await interactiveSelectAuth();
     } catch {
@@ -304,6 +304,10 @@ async function interactiveSelectAuth(): Promise<"oauth" | "api_key"> {
     const readline = require("node:readline");
     readline.emitKeypressEvents(process.stdin);
     const wasRaw = process.stdin.isRaw;
+    if (!process.stdin.isTTY) {
+      reject(new Error("No TTY available for interactive selection."));
+      return;
+    }
     process.stdin.setRawMode(true);
 
     const options: Array<{ label: string; value: "oauth" | "api_key" }> = [
@@ -354,4 +358,8 @@ async function interactiveSelectAuth(): Promise<"oauth" | "api_key"> {
     process.stdin.on("keypress", onKeypress as any);
     render();
   });
+}
+
+function shouldForceInteractive(): boolean {
+  return process.env.OPENSECURITY_FORCE_TTY === "1";
 }
