@@ -1,9 +1,10 @@
 #!/usr/bin/env node
+import fs from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
 import { login } from "./login.js";
 import { startProxyServer } from "./proxy.js";
-import { scan, renderJsonReport, renderTextReport, listMatchedFiles } from "./scan.js";
+import { scan, renderJsonReport, renderSarifReport, renderTextReport, listMatchedFiles } from "./scan.js";
 import { setTelemetryEnabled, trackEvent } from "./telemetry.js";
 import { loadGlobalConfig } from "./config.js";
 import { Logger, Spinner, formatDuration, pluralize, bold, severityColor } from "./progress.js";
@@ -45,7 +46,7 @@ program
 program
   .command("scan")
   .description("Run AI security scan")
-  .option("--format <format>", "text|json", "text")
+  .option("--format <format>", "text|json|sarif", "text")
   .option("--max-chars <maxChars>", "max chars per chunk", (v) => Number(v), 4000)
   .option("--model <model>", "override model")
   .option("--auth <mode>", "oauth|api_key (overrides config)")
@@ -64,6 +65,8 @@ program
   .option("--dependency-only", "only run dependency/CVE scanning")
   .option("--no-ai", "skip AI model scanning")
   .option("--dry-run", "list matched files without calling the model")
+  .option("--fail-on <severity>", "fail if findings are >= severity (low|medium|high|critical)")
+  .option("--sarif-output <path>", "write SARIF to file in addition to primary output")
   .option("--verbose", "show detailed progress information")
   .action(async (opts) => {
     await executeScan(opts);
@@ -140,8 +143,18 @@ async function executeScan(opts: any) {
     const elapsed = Date.now() - startTime;
     if (useSpinner) spinner.stop();
 
-    const output = isJson ? renderJsonReport(result) : renderTextReport(result);
+    const output =
+      opts.format === "sarif"
+        ? renderSarifReport(result)
+        : isJson
+          ? renderJsonReport(result)
+          : renderTextReport(result);
     console.log(output || "No findings.");
+
+    if (opts.sarifOutput && opts.format !== "sarif") {
+      const sarif = renderSarifReport(result);
+      await fs.writeFile(opts.sarifOutput, sarif, "utf8");
+    }
 
     // Print summary
     if (!isJson) {
@@ -157,6 +170,18 @@ async function executeScan(opts: any) {
         log.warn(
           `Scan complete in ${formatDuration(elapsed)} — ${pluralize(total, "finding")} [${parts.join(", ")}]`
         );
+      }
+    }
+
+    if (opts.failOn) {
+      const threshold = severityRank(opts.failOn);
+      if (threshold === null) {
+        log.warn(`Unknown --fail-on level: ${opts.failOn}`);
+      } else {
+        const worst = highestSeverity(result.findings);
+        if (worst !== null && worst >= threshold) {
+          process.exitCode = 1;
+        }
       }
     }
 
@@ -199,4 +224,29 @@ function countBySeverity(findings: Array<{ severity: string }>): Record<string, 
     counts[f.severity] = (counts[f.severity] ?? 0) + 1;
   }
   return counts;
+}
+
+function severityRank(severity: string): number | null {
+  switch (severity) {
+    case "critical":
+      return 3;
+    case "high":
+      return 2;
+    case "medium":
+      return 1;
+    case "low":
+      return 0;
+    default:
+      return null;
+  }
+}
+
+function highestSeverity(findings: Array<{ severity: string }>): number | null {
+  let max: number | null = null;
+  for (const f of findings) {
+    const rank = severityRank(f.severity);
+    if (rank === null) continue;
+    if (max === null || rank > max) max = rank;
+  }
+  return max;
 }
