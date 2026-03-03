@@ -42,12 +42,10 @@ export async function login(
   console.log("   1. OpenAI Codex (OAuth) - Recommended, browser-based.");
   console.log("   2. OpenAI API Key (Manual) - Direct access to OpenAI Platform.\n");
 
-  const choice = await askQuestion("Select option (1 or 2): ");
-
-  if (choice === "2") {
+  const modeChoice = await promptLoginMode();
+  if (modeChoice === "api_key") {
     return loginWithApiKey(env, model);
   }
-
   // Option 1: Codex OAuth (Default)
   return loginWithOAuth(env, model);
 }
@@ -235,6 +233,75 @@ function runCodexLogin(): Promise<void> {
       if (code === 0) resolve();
       else reject(new Error(`codex login failed with exit code ${code ?? "unknown"}`));
     });
+  });
+}
+
+async function promptLoginMode(): Promise<"oauth" | "api_key"> {
+  if (process.stdin.isTTY && process.stdout.isTTY) {
+    try {
+      return await interactiveSelectLoginMode();
+    } catch {
+      // fall through to text prompt
+    }
+  }
+  const answer = await askQuestion("Select auth mode (oauth/api_key): ");
+  return answer.trim() === "api_key" ? "api_key" : "oauth";
+}
+
+async function interactiveSelectLoginMode(): Promise<"oauth" | "api_key"> {
+  return new Promise((resolve, reject) => {
+    const readline = require("node:readline");
+    readline.emitKeypressEvents(process.stdin);
+    const wasRaw = process.stdin.isRaw;
+    process.stdin.setRawMode(true);
+
+    const options: Array<{ label: string; value: "oauth" | "api_key" }> = [
+      { label: "OpenAI Codex OAuth (browser)", value: "oauth" },
+      { label: "OpenAI API Key (manual)", value: "api_key" }
+    ];
+    let index = 0;
+
+    const render = () => {
+      process.stdout.write("\x1b[2J\x1b[H");
+      process.stdout.write("Select authentication method\n");
+      for (let i = 0; i < options.length; i += 1) {
+        const prefix = i === index ? ">" : " ";
+        process.stdout.write(`${prefix} ${options[i].label}\n`);
+      }
+      process.stdout.write("\nUse ↑/↓ to move, Enter to select.\n");
+    };
+
+    const cleanup = () => {
+      process.stdin.off("keypress", onKeypress as any);
+      if (!wasRaw) process.stdin.setRawMode(false);
+      process.stdout.write("\x1b[2J\x1b[H");
+    };
+
+    const onKeypress = (_: string, key: { name?: string; ctrl?: boolean }) => {
+      if (key.ctrl && key.name === "c") {
+        cleanup();
+        reject(new Error("Selection cancelled."));
+        return;
+      }
+      if (key.name === "down") {
+        index = (index + 1) % options.length;
+        render();
+        return;
+      }
+      if (key.name === "up") {
+        index = (index - 1 + options.length) % options.length;
+        render();
+        return;
+      }
+      if (key.name === "return") {
+        const value = options[index].value;
+        cleanup();
+        resolve(value);
+      }
+    };
+
+    process.stdin.on("keypress", onKeypress as any);
+    render();
   });
 }
 
