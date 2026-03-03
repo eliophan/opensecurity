@@ -265,9 +265,6 @@ async function resolveAuthMode(opts: any): Promise<"oauth" | "api_key" | undefin
   const hasOauth = Boolean(oauthProfile);
 
   if (hasApiKey && hasOauth) {
-    if (!process.stdin.isTTY || !process.stdout.isTTY) {
-      throw new Error("Multiple auth modes found. Use --auth oauth or --auth api_key.");
-    }
     return await promptAuthMode();
   }
 
@@ -277,12 +274,10 @@ async function resolveAuthMode(opts: any): Promise<"oauth" | "api_key" | undefin
 }
 
 async function promptAuthMode(): Promise<"oauth" | "api_key"> {
-  if (shouldForceInteractive() || (process.stdin.isTTY && process.stdout.isTTY)) {
-    try {
-      return await interactiveSelectAuth();
-    } catch {
-      // fall through to text prompt
-    }
+  try {
+    return await interactiveSelectAuth();
+  } catch {
+    // fall through to text prompt
   }
   const answer = await askQuestion("Select auth mode for this scan (oauth/api_key): ");
   return answer.trim() === "api_key" ? "api_key" : "oauth";
@@ -302,13 +297,9 @@ function askQuestion(question: string): Promise<string> {
 async function interactiveSelectAuth(): Promise<"oauth" | "api_key"> {
   return new Promise((resolve, reject) => {
     const readline = require("node:readline");
-    readline.emitKeypressEvents(process.stdin);
-    const wasRaw = process.stdin.isRaw;
-    if (!process.stdin.isTTY) {
-      reject(new Error("No TTY available for interactive selection."));
-      return;
-    }
-    process.stdin.setRawMode(true);
+    const { input, output, cleanup: baseCleanup } = getInteractiveStreams();
+    readline.emitKeypressEvents(input);
+    input.setRawMode(true);
 
     const options: Array<{ label: string; value: "oauth" | "api_key" }> = [
       { label: "OpenAI Codex OAuth", value: "oauth" },
@@ -317,19 +308,18 @@ async function interactiveSelectAuth(): Promise<"oauth" | "api_key"> {
     let index = 0;
 
     const render = () => {
-      process.stdout.write("\x1b[2J\x1b[H");
-      process.stdout.write("Select auth mode for this scan\n");
+      output.write("\x1b[2J\x1b[H");
+      output.write("Select auth mode for this scan\n");
       for (let i = 0; i < options.length; i += 1) {
-        const prefix = i === index ? ">" : " ";
-        process.stdout.write(`${prefix} ${options[i].label}\n`);
+        const prefix = i === index ? "◉" : "○";
+        output.write(`${prefix} ${options[i].label}\n`);
       }
-      process.stdout.write("\nUse ↑/↓ to move, Enter to select.\n");
+      output.write("\nUse ↑/↓ to move, Enter to select.\n");
     };
 
     const cleanup = () => {
-      process.stdin.off("keypress", onKeypress as any);
-      if (!wasRaw) process.stdin.setRawMode(false);
-      process.stdout.write("\x1b[2J\x1b[H");
+      input.off("keypress", onKeypress as any);
+      baseCleanup();
     };
 
     const onKeypress = (_: string, key: { name?: string; ctrl?: boolean }) => {
@@ -355,11 +345,42 @@ async function interactiveSelectAuth(): Promise<"oauth" | "api_key"> {
       }
     };
 
-    process.stdin.on("keypress", onKeypress as any);
+    input.on("keypress", onKeypress as any);
     render();
   });
 }
 
 function shouldForceInteractive(): boolean {
   return process.env.OPENSECURITY_FORCE_TTY === "1";
+}
+
+function getInteractiveStreams(): {
+  input: any;
+  output: any;
+  cleanup: () => void;
+} {
+  if (process.stdin.isTTY && process.stdout.isTTY) {
+    const wasRaw = process.stdin.isRaw;
+    const cleanup = () => {
+      if (!wasRaw) process.stdin.setRawMode(false);
+      process.stdout.write("\x1b[2J\x1b[H");
+    };
+    return { input: process.stdin, output: process.stdout, cleanup };
+  }
+  try {
+    const tty = require("node:tty");
+    const fs = require("node:fs");
+    const fd = fs.openSync("/dev/tty", "r+");
+    const input = new tty.ReadStream(fd);
+    const output = new tty.WriteStream(fd);
+    const cleanup = () => {
+      input.setRawMode(false);
+      input.pause();
+      output.write("\x1b[2J\x1b[H");
+      fs.closeSync(fd);
+    };
+    return { input, output, cleanup };
+  } catch {
+    throw new Error("No TTY available for interactive selection.");
+  }
 }
