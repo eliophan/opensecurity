@@ -40,6 +40,8 @@ jobs:
           fi
           node dist/cli.js scan $SCAN_ARGS > scan-results.json 2>&1 || true
           echo "results_file=scan-results.json" >> "$GITHUB_OUTPUT"
+          # Also generate SARIF for GitHub Security tab
+          node dist/cli.js scan --format sarif --cwd ${{ github.workspace }} > scan-results.sarif 2>&1 || true
 
       - name: Generate PR comment
         id: comment
@@ -58,5 +60,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: security-scan-results
-          path: scan-results.json
+          path: |
+            scan-results.json
+            scan-results.sarif
           retention-days: 30
+
+      - name: Upload SARIF to GitHub
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: scan-results.sarif
