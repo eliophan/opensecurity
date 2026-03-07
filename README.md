@@ -3,6 +3,7 @@
 > **OUTDATED / ARCHIVED**
 > This repository is no longer maintained and its implementation and documentation are outdated.
 > Do not rely on this project for production security scanning.
+> I use this to perform a security scan of the entire codebase before claude/codex security is activated.
 
 ## Current Guidance (Use These Instead)
 
