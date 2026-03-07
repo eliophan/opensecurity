@@ -1,197 +1,45 @@
-# OpenSecurity
+# OpenSecurity (Outdated)
 
-Open-source, user-facing hybrid security scanner for GitHub and CI.
+> **OUTDATED / ARCHIVED**
+> This repository is no longer maintained and its implementation and documentation are outdated.
+> Do not rely on this project for production security scanning.
 
-## Vision
+## Current Guidance (Use These Instead)
 
-OpenSecurity combines deterministic static analysis with AI reasoning to deliver structured, CI-friendly security findings. The philosophy is simple: deterministic first, AI second, structured output always.
+If you're looking for current, supported security scanning solutions, refer to:
 
-## Architecture
+- [OpenAI Codex Security](https://developers.openai.com/codex/security)
+- [Claude Code Security](https://claude.com/solutions/claude-code-security)
 
-```
-CLI
- ├── File Collector
- ├── AST Pre-Scanner (Deterministic Rules)
- ├── AI Analyzer (Codex CLI or OpenAI API)
- ├── Finding Normalizer
- ├── Reporter (Text / JSON)
- └── (Planned) Dedup / Severity / SARIF
-```
+These products describe modern, actively maintained approaches for code security scanning, validation, and remediation workflows.
 
-## Execution Flow
+## What This Repo Contains (Historical)
 
-1. **File collection**
-   - Recursively walks the target directory.
-   - Applies include/exclude filters from project config.
-2. **Deterministic pre-scan (JS/TS)**
-   - Parses AST with `@babel/parser` and runs taint rules.
-   - Current rules cover: eval injection, command injection, SSRF.
-3. **AI analysis (optional)**
-   - Sends code chunks to AI for deeper reasoning.
-   - OAuth mode uses Codex CLI (no model override is passed).
-   - API key mode uses OpenAI Responses API.
-4. **Reporting**
-   - Outputs text or JSON.
-   - Dependency CVE findings are included when enabled.
+This project was an experimental, open-source CLI that combined:
 
-## Quickstart
+- Deterministic static analysis (AST rules for JS/TS)
+- Optional AI-assisted review
+- Dependency CVE lookup via a local cache
+- Text/JSON reporting
 
-```bash
-npm install
-npm run dev -- login --mode oauth
-npm run dev -- scan --auth oauth --verbose
-```
+The original CLI entry point is in `src/cli.ts`, with compiled output in `dist/`.
 
-## Download, Use, Update
+## Confidentiality & Secrets (Read This)
 
-### Install (global)
+- **No secrets should ever be committed.** This repo must not contain API keys, tokens, or credentials.
+- Global config was stored outside the repo at `~/.config/opensecurity/config.json`.
+  - If you used this project in the past, verify that file does **not** contain any active secrets.
+  - Rotate and revoke any credentials that may have been exposed.
+- Do not add real customer data, production logs, or private datasets to this repository.
 
-```bash
-npm install -g opensecurity
-opensecurity login --mode oauth
-opensecurity scan --auth oauth
-```
+## Safety Notes
 
-### Run without install
+Because this repo is outdated:
 
-```bash
-npx opensecurity login --mode oauth
-npx opensecurity scan --auth oauth
-```
-
-### Update
-
-```bash
-npm update -g opensecurity
-```
-
-Scan the sample project:
-```bash
-npm run dev -- scan --auth oauth --cwd examples --verbose
-```
-
-## Authentication Modes
-
-### OAuth (Codex CLI)
-
-Best for local development. Uses Codex CLI transport and your ChatGPT OAuth session.
-
-```bash
-codex login
-npm run dev -- login --mode oauth
-npm run dev -- scan --auth oauth
-```
-
-Notes:
-- No `--model` override is passed to Codex in OAuth mode.
-- If you want a different Codex model, choose it during login.
-
-### API Key (OpenAI API)
-
-Best for CI and production scans.
-
-```bash
-npm run dev -- login --mode api_key
-npm run dev -- scan --auth api_key
-```
-
-The API key is stored in `~/.config/opensecurity/config.json`.
-
-## Commands
-
-- `opensecurity login` — authenticate via OAuth or API key.
-  - `--mode oauth|api_key`
-  - `--model <model>` (default model saved to config)
-- `opensecurity scan` — run a scan.
-  - `--format text|json`
-  - `--auth oauth|api_key`
-  - `--dry-run`
-  - `--no-ai`
-  - `--dependency-only`
-  - `--simulate`
-  - `--rules <path>`
-  - `--cve-cache <path>`
-  - `--cve-api-url <url>`
-  - `--include <glob...>` / `--exclude <glob...>`
-  - `--verbose`
-- `opensecurity telemetry on|off`
-- `opensecurity proxy` — local OAuth proxy (optional, API mode only).
-
-## Config
-
-Global config: `~/.config/opensecurity/config.json`
-
-Project config: `.opensecurity.json`
-
-```json
-{
-  "rulesPath": "path/to/rules.json",
-  "cveCachePath": "cve-cache.json",
-  "cveApiUrl": "https://...",
-  "dataSensitivity": "low|medium|high",
-  "include": ["**/*"],
-  "exclude": ["**/node_modules/**"]
-}
-```
-
-## Output Formats
-
-- `text`: human-readable CLI summary
-- `json`: structured machine output
-
-SARIF support is planned.
-
-## Rule Packs
-
-Rules are defined as JSON arrays (see `src/rules/defaultRules.ts`).
-You can provide a custom rule pack with `--rules <path>`.
-
-Profiles (OWASP/backend/frontend) are planned.
-
-## CI / GitHub Actions
-
-For CI, use API key mode and create config at runtime:
-
-```bash
-mkdir -p ~/.config/opensecurity
-cat > ~/.config/opensecurity/config.json <<'JSON'
-{
-  "apiKey": "${OPENAI_API_KEY}",
-  "authMode": "api_key",
-  "baseUrl": "https://api.openai.com/v1/responses",
-  "apiType": "responses",
-  "model": "gpt-4o-mini"
-}
-JSON
-
-node dist/cli.js scan --format json --cwd $GITHUB_WORKSPACE
-```
-
-## Roadmap (Planned)
-
-- SARIF output
-- Severity engine + confidence scoring
-- Deduplication
-- Rule profiles
-- Language parsers beyond JS/TS
-
-## Who It’s For
-
-- Open-source maintainers who want PR/CI security checks
-- Developers who need fast, deterministic security signals
-- Teams that want AI-assisted triage without losing structured output
-
-## Contribution Rules
-
-- Keep changes small and focused; add docs for new CLI flags
-- Prefer deterministic rules over AI-only heuristics
-- Run `npm test` and `npm run lint` when touching scan logic
-- Follow existing TypeScript style (ESM, strict types)
+- The scanner may miss vulnerabilities or generate incorrect results.
+- Dependencies and model integrations may be stale or insecure.
+- There is no guarantee of ongoing maintenance or fixes.
 
 ## License
 
-MIT (license file to be added).
-
-## Security Philosophy
-
-Deterministic core. AI-enhanced reasoning. Structured output. CI-ready enforcement.
+MIT (see `LICENSE`).
