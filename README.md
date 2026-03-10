@@ -75,6 +75,7 @@ Common options:
 - `--cve-api-url <url>`: CVE lookup API endpoint
 - `--simulate`: include payload + impact for dependency findings
 - `--provider <provider>`: `openai|anthropic|google|mistral|xai|cohere`
+- `--ai-all-text`: allow AI scan on all text files (non-JS/TS)
 - `--dependency-only`: only run dependency scan
 - `--no-ai`: disable AI scanning
 - `--dry-run`: list matched files without scanning

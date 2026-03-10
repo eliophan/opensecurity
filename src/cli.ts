@@ -70,6 +70,7 @@ program
     "low|medium|high (affects risk scoring)",
     "medium"
   )
+  .option("--ai-all-text", "allow AI scan on all text files (non-JS/TS)")
   .option("--concurrency <n>", "parallel scan workers", (v) => Number(v))
   .option("--dependency-only", "only run dependency/CVE scanning")
   .option("--no-ai", "skip AI model scanning")
@@ -152,6 +153,7 @@ async function executeScan(opts: any) {
       dataSensitivity: opts.dataSensitivity,
       dependencyOnly: opts.dependencyOnly,
       noAi: opts.noAi,
+      aiAllText: opts.aiAllText,
       concurrency: opts.concurrency
     });
 

@@ -61,6 +61,7 @@ export type ScanOptions = {
   dataSensitivity?: "low" | "medium" | "high";
   dependencyOnly?: boolean;
   noAi?: boolean;
+  aiAllText?: boolean;
   dryRun?: boolean;
   concurrency?: number;
   maxRetries?: number;
@@ -120,6 +121,10 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
     let codeFileIndex = 0;
     let totalEstimatedTokens = 0;
 
+    const aiEligibleFiles = options.aiAllText
+      ? files.filter((filePath) => isLikelyTextFile(filePath))
+      : files.filter((filePath) => isAnalyzableFile(filePath));
+
     const codeFiles: Array<{
       absPath: string;
       relPath: string;
@@ -127,13 +132,21 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
       parsed: ReturnType<typeof parseSource>;
     }> = [];
 
-    for (const filePath of files) {
+    for (const filePath of aiEligibleFiles) {
       if (!isAnalyzableFile(filePath)) continue;
       const content = await fs.readFile(filePath, "utf8");
       totalEstimatedTokens += Math.ceil(content.length / CHARS_PER_TOKEN);
       const relPath = path.relative(cwd, filePath);
       const parsed = parseSource(content, relPath);
       codeFiles.push({ absPath: filePath, relPath, content, parsed });
+    }
+
+    if (options.aiAllText) {
+      for (const filePath of aiEligibleFiles) {
+        if (isAnalyzableFile(filePath)) continue;
+        const content = await fs.readFile(filePath, "utf8");
+        totalEstimatedTokens += Math.ceil(content.length / CHARS_PER_TOKEN);
+      }
     }
 
     if (apiKey && !options.noAi && totalEstimatedTokens > MAX_ESTIMATED_TOKENS) {
@@ -185,6 +198,62 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
             if (options.onProgress) {
               options.onProgress({
                 file: file.relPath,
+                fileIndex,
+                totalFiles: totalCodeFiles,
+                chunkIndex,
+                totalChunks
+              });
+            }
+            const parsed = useCodexCli
+              ? await callCodexCliWithRetry(
+                  prompt,
+                  maxRetries,
+                  retryDelayMs,
+                  options.liveOutput ? options.onOutputChunk : undefined
+                )
+              : await (async () => {
+                  const responseText = await callModelWithRetry(
+                    {
+                      provider,
+                      apiKey: apiKey!,
+                      baseUrl: provider === "openai" ? baseUrl : globalConfig.providerBaseUrl,
+                      apiType,
+                      model,
+                      prompt
+                    },
+                    maxRetries,
+                    retryDelayMs
+                  );
+                  return extractJson(responseText);
+                })();
+
+            if (!parsed?.findings) return;
+            for (const finding of parsed.findings) {
+              findings.push({
+                ...finding,
+                file: finding.file ?? relPath
+              });
+            }
+          });
+        }
+      }
+    }
+
+    if ((apiKey || useCodexCli) && !options.noAi && options.aiAllText) {
+      const nonJsFiles = aiEligibleFiles.filter((filePath) => !isAnalyzableFile(filePath));
+      for (const filePath of nonJsFiles) {
+        const relPath = path.relative(cwd, filePath);
+        const content = await fs.readFile(filePath, "utf8");
+        const chunks = chunkText(content, maxChars);
+        for (let i = 0; i < chunks.length; i += 1) {
+          const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
+          const fileIndex = totalCodeFiles + 1;
+          const chunkIndex = i + 1;
+          const totalChunks = chunks.length;
+          tasks.push(async () => {
+            if (options.onProgress) {
+              options.onProgress({
+                file: relPath,
                 fileIndex,
                 totalFiles: totalCodeFiles,
                 chunkIndex,
@@ -912,6 +981,19 @@ function isAnalyzableFile(filePath: string): boolean {
   // JS/TS only: Babel AST parser expects JS/TS syntax.
   const supported = [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"];
   return supported.includes(ext);
+}
+
+function isLikelyTextFile(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase();
+  if (!ext) return true;
+  const blocked = new Set([
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico", ".svg",
+    ".zip", ".gz", ".tgz", ".rar", ".7z",
+    ".pdf", ".mp3", ".mp4", ".mov", ".avi", ".mkv",
+    ".woff", ".woff2", ".ttf", ".otf",
+    ".bin", ".exe", ".dmg", ".iso"
+  ]);
+  return !blocked.has(ext);
 }
 
 function dedupeFindings(findings: Finding[]): Finding[] {
