@@ -16,6 +16,7 @@ export type PatternFinding = {
 
 const SECRET_NAME_REGEX = /^(api[-_]?key|secret|token|password|passwd|pwd|private[-_]?key|access[-_]?key|client[-_]?secret)$/i;
 const SECRET_VALUE_MIN_LEN = 16;
+const SECRET_ENTROPY_THRESHOLD = 3.7;
 
 const SECRET_VALUE_PATTERNS: Array<{ id: string; pattern: RegExp; title: string }> = [
   { id: "secret-aws-access-key", pattern: /AKIA[0-9A-Z]{16}/, title: "Hardcoded AWS Access Key" },
@@ -29,6 +30,7 @@ const SECRET_VALUE_PATTERNS: Array<{ id: string; pattern: RegExp; title: string 
 
 const WEAK_HASHES = new Set(["md5", "sha1", "md4"]);
 const WEAK_CIPHERS = ["des", "3des", "rc2", "rc4", "bf", "blowfish", "idea"];
+const INSECURE_RANDOM_CALLS = new Set(["Math.random", "crypto.pseudoRandomBytes", "pseudoRandomBytes"]);
 
 const DESERIALIZATION_CALLEES = new Set([
   "unserialize",
@@ -103,6 +105,11 @@ export function runPatternDetectors(ast: File, filePath: string): PatternFinding
     return SECRET_NAME_REGEX.test(name);
   };
 
+  const isHighEntropySecret = (value: string): boolean => {
+    if (value.length < SECRET_VALUE_MIN_LEN) return false;
+    return shannonEntropy(value) >= SECRET_ENTROPY_THRESHOLD;
+  };
+
   const matchesSecretValue = (value: string): { id: string; title: string } | null => {
     for (const entry of SECRET_VALUE_PATTERNS) {
       if (entry.pattern.test(value)) return { id: entry.id, title: entry.title };
@@ -126,6 +133,10 @@ export function runPatternDetectors(ast: File, filePath: string): PatternFinding
       }
       if (isSecretKeyName(name)) {
         markSecret(path.node.init, "Hardcoded Secret", `Hardcoded value assigned to '${name}'.`);
+        return;
+      }
+      if (isHighEntropySecret(value)) {
+        markSecret(path.node.init, "Hardcoded Secret", "High-entropy string literal may be a secret.");
       }
     },
     ObjectProperty(path) {
@@ -144,6 +155,10 @@ export function runPatternDetectors(ast: File, filePath: string): PatternFinding
       }
       if (isSecretKeyName(keyName)) {
         markSecret(path.node.value, "Hardcoded Secret", `Hardcoded value for object key '${keyName}'.`);
+        return;
+      }
+      if (isHighEntropySecret(value)) {
+        markSecret(path.node.value, "Hardcoded Secret", "High-entropy string literal may be a secret.");
       }
     },
     CallExpression(path) {
@@ -158,6 +173,10 @@ export function runPatternDetectors(ast: File, filePath: string): PatternFinding
             markCrypto(arg, "Weak Hash Function", `Hash algorithm '${value}' is considered weak.`);
           }
         }
+      }
+
+      if (INSECURE_RANDOM_CALLS.has(calleeName)) {
+        markCrypto(path.node, "Insecure Randomness", "Math.random or pseudoRandomBytes is not cryptographically secure.");
       }
 
       if (calleeName === "crypto.createCipher" || calleeName === "createCipher") {
@@ -220,4 +239,18 @@ function normalizeTraverse(
   value: typeof traverseImport
 ): typeof traverseImport {
   return (value as unknown as { default?: typeof traverseImport }).default ?? value;
+}
+
+function shannonEntropy(value: string): number {
+  const counts = new Map<string, number>();
+  for (const ch of value) {
+    counts.set(ch, (counts.get(ch) ?? 0) + 1);
+  }
+  const len = value.length;
+  let entropy = 0;
+  for (const count of counts.values()) {
+    const p = count / len;
+    entropy -= p * Math.log2(p);
+  }
+  return entropy;
 }

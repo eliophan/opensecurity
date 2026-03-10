@@ -15,12 +15,23 @@ describe("pattern detectors", () => {
     expect(ids).toContain("secret-github");
   });
 
+  it("detects high-entropy secrets", () => {
+    const code = `
+      const secret = "Xy1Q9zT8pLm2Nw5Vb7cR3dE6fGh4Jk0S";
+    `;
+    const parsed = parseSource(code, "entropy.ts");
+    const findings = runPatternDetectors(parsed.ast, parsed.filePath);
+    const titles = findings.map((f) => f.title);
+    expect(titles).toContain("Hardcoded Secret");
+  });
+
   it("detects weak crypto usage", () => {
     const code = `
       import crypto from "node:crypto";
       crypto.createHash("md5");
       crypto.createCipher("aes-256-ecb", "secret");
       crypto.createCipheriv("des-ede3", Buffer.alloc(8), Buffer.alloc(8));
+      Math.random();
     `;
     const parsed = parseSource(code, "crypto.ts");
     const findings = runPatternDetectors(parsed.ast, parsed.filePath);
@@ -28,6 +39,7 @@ describe("pattern detectors", () => {
     expect(titles).toContain("Weak Hash Function");
     expect(titles).toContain("Insecure Cipher API");
     expect(titles).toContain("Weak Cipher Algorithm");
+    expect(titles).toContain("Insecure Randomness");
   });
 
   it("detects unsafe deserialization", () => {
