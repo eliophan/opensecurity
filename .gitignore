@@ -2,3 +2,4 @@ node_modules/
 dist/
 tests/*.js
 ROADMAP.md
+emsdk/
