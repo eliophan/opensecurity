@@ -60,7 +60,7 @@ opensecurity scan --dry-run
 
 Package: `https://www.npmjs.com/package/opensecurity`
 
-From source (dev only):
+Development (optional, for contributors):
 
 ```bash
 npm install
