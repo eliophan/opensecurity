@@ -3,7 +3,11 @@ import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import type { LanguageConfig } from "./languages.js";
 
-type TreeSitterModule = typeof import("web-tree-sitter");
+type TreeSitterModule = {
+  init: () => Promise<void>;
+  Language: { load: (path: string) => Promise<any> };
+  Parser: new () => { setLanguage: (lang: any) => void; parse: (source: string) => any };
+};
 
 let treeSitter: TreeSitterModule | null = null;
 let treeSitterInit: Promise<void> | null = null;
@@ -16,13 +20,18 @@ export type ParsedTree = {
 
 async function ensureTreeSitter(): Promise<TreeSitterModule> {
   if (treeSitter) return treeSitter;
-  const mod = await import("web-tree-sitter");
-  treeSitter = mod;
+  const mod: any = await import("web-tree-sitter");
+  const resolved: TreeSitterModule = {
+    init: mod.init?.bind(mod),
+    Language: mod.Language,
+    Parser: mod.Parser
+  };
+  treeSitter = resolved;
   if (!treeSitterInit) {
-    treeSitterInit = mod.init();
+    treeSitterInit = resolved.init();
   }
   await treeSitterInit;
-  return mod;
+  return resolved;
 }
 
 async function loadNativeLanguage(lang: LanguageConfig): Promise<any | null> {

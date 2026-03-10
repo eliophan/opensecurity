@@ -50,7 +50,7 @@ export const SCHEMA_VERSION = "1.0.0";
 export type ScanOptions = {
   cwd?: string;
   targetPath?: string;
-  format?: "text" | "json";
+  format?: "text" | "json" | "sarif";
   maxChars?: number;
   model?: string;
   authMode?: "oauth" | "api_key";
@@ -102,6 +102,7 @@ const CHARS_PER_TOKEN = 4; // Simple heuristic for estimation
 
 export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const outputFormat = options.format ?? "text";
   const resolvedRoot = options.targetPath
     ? path.resolve(options.cwd ?? process.cwd(), options.targetPath)
     : (options.cwd ?? process.cwd());
@@ -280,7 +281,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
         allowList: options.adapters ?? projectConfig.adapters
       });
       for (const warning of warnings) {
-        if (options.format !== "json" && options.format !== "sarif") {
+        if (outputFormat !== "json" && outputFormat !== "sarif") {
           console.warn(warning);
         }
       }
@@ -344,7 +345,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
         }
       }
 
-      if (nativeWarnings.size && options.format !== "json" && options.format !== "sarif") {
+      if (nativeWarnings.size && outputFormat !== "json" && outputFormat !== "sarif") {
         for (const warning of nativeWarnings) {
           console.warn(warning);
         }
