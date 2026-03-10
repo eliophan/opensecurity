@@ -11,6 +11,7 @@
     "dev": "tsx src/cli.ts",
     "proxy": "tsx src/proxy.ts",
     "build": "tsc",
+    "build-grammars": "tsx scripts/build-grammars.ts",
     "prepack": "npm run build",
     "package": "npm run build && npm pack",
     "test": "vitest run",
@@ -18,6 +19,8 @@
   },
   "files": [
     "dist",
+    "assets",
+    "rules",
     "README.md",
     "LICENSE"
   ],
@@ -27,7 +30,22 @@
     "@babel/types": "^7.26.9",
     "commander": "^12.0.0",
     "picomatch": "^4.0.2",
-    "semver": "^7.6.3"
+    "semver": "^7.6.3",
+    "web-tree-sitter": "^0.21.0"
+  },
+  "optionalDependencies": {
+    "tree-sitter": "^0.22.6",
+    "tree-sitter-c": "^0.21.4",
+    "tree-sitter-c-sharp": "^0.23.0",
+    "tree-sitter-cpp": "^0.22.0",
+    "tree-sitter-go": "^0.21.0",
+    "tree-sitter-java": "^0.21.0",
+    "tree-sitter-kotlin": "^0.3.7",
+    "tree-sitter-php": "^0.22.0",
+    "tree-sitter-python": "^0.21.0",
+    "tree-sitter-ruby": "^0.21.0",
+    "tree-sitter-rust": "^0.21.2",
+    "tree-sitter-swift": "^0.6.1"
   },
   "devDependencies": {
     "@types/babel__traverse": "^7.20.7",
@@ -37,6 +55,7 @@
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
     "eslint": "^9.39.4",
+    "tree-sitter-cli": "^0.22.6",
     "tsx": "^4.19.0",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8"
