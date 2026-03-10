@@ -10,6 +10,7 @@ import { walkFiles } from "./fileWalker.js";
 import { parseSource } from "./analysis/ast.js";
 import { runRuleEngine } from "./analysis/rules.js";
 import { runPatternDetectors } from "./analysis/patterns.js";
+import { runUniversalPatterns } from "./analysis/universalPatterns.js";
 import { loadRules } from "./rules/loadRules.js";
 import { scanDependenciesWithCves } from "./deps/engine.js";
 
@@ -217,6 +218,20 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
         });
       }
 
+      const universalFindings = runUniversalPatterns(file.content, file.relPath);
+      for (const finding of universalFindings) {
+        findings.push({
+          id: finding.id,
+          severity: finding.severity,
+          title: finding.title,
+          description: `${finding.description} [${finding.owasp}]`,
+          file: finding.file,
+          line: finding.line,
+          owasp: finding.owasp,
+          category: "code"
+        });
+      }
+
     }
 
     if ((apiKey || useCodexCli) && !options.noAi) {
@@ -368,6 +383,19 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
           for (const filePath of nonJsFiles) {
             const relPath = path.relative(cwd, filePath);
             const content = await fs.readFile(filePath, "utf8");
+            const universalFindings = runUniversalPatterns(content, relPath);
+            for (const finding of universalFindings) {
+              findings.push({
+                id: finding.id,
+                severity: finding.severity,
+                title: finding.title,
+                description: `${finding.description} [${finding.owasp}]`,
+                file: finding.file,
+                line: finding.line,
+                owasp: finding.owasp,
+                category: "code"
+              });
+            }
             const chunks = chunkText(content, maxChars);
             for (let i = 0; i < chunks.length; i += 1) {
               const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);

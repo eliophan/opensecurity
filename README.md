@@ -1,11 +1,12 @@
 # OpenSecurity
 
-OpenSecurity is an open-source CLI that scans repositories for security risks using three engines:
+OpenSecurity is an open-source CLI that scans repositories for security risks using multiple engines:
 
 - **Static analysis (AST + taint rules)** for JavaScript/TypeScript.
+- **Universal static patterns** for popular languages (Python, Go, Java, C#, Ruby, PHP, Rust, Kotlin, Swift, C/C++).
 - **Pattern detectors** for common mistakes (secrets, crypto misuse, unsafe deserialization).
 - **Dependency CVE scanning** for npm/PyPI.
-- **AI scanning** across all text files by default (optional).
+- **AI scanning** across all text files by default (can be disabled with `--no-ai`).
 
 ## Project Status
 
