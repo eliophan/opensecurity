@@ -1,0 +1,99 @@
+{
+  "language": "csharp",
+  "rules": [
+    {
+      "id": "cs-sqli",
+      "title": "SQL Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "req", "name": "Request.QueryString", "matcher": { "calleePattern": ["Request.QueryString*", "Request.Form*"] } }
+      ],
+      "sinks": [
+        { "id": "sql", "name": "SqlCommand.Execute", "matcher": { "calleePattern": ["*.ExecuteNonQuery", "*.ExecuteReader", "*.ExecuteScalar"] } }
+      ]
+    },
+    {
+      "id": "cs-cmd",
+      "title": "Command Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "req", "name": "Request.QueryString", "matcher": { "calleePattern": ["Request.QueryString*", "Request.Form*"] } }
+      ],
+      "sinks": [
+        { "id": "proc", "name": "Process.Start", "matcher": { "calleePattern": ["Process.Start"] } }
+      ]
+    },
+    {
+      "id": "cs-path",
+      "title": "Path Traversal",
+      "severity": "high",
+      "owasp": "A01:2021 Broken Access Control",
+      "kind": "taint",
+      "sources": [
+        { "id": "req", "name": "Request.QueryString", "matcher": { "calleePattern": ["Request.QueryString*", "Request.Form*"] } }
+      ],
+      "sinks": [
+        { "id": "file", "name": "File.ReadAllText", "matcher": { "calleePattern": ["File.ReadAllText", "File.ReadAllBytes", "File.OpenRead"] } }
+      ]
+    },
+    {
+      "id": "cs-ssrf",
+      "title": "Server-Side Request Forgery",
+      "severity": "high",
+      "owasp": "A10:2021 Server-Side Request Forgery",
+      "kind": "taint",
+      "sources": [
+        { "id": "req", "name": "Request.QueryString", "matcher": { "calleePattern": ["Request.QueryString*", "Request.Form*"] } }
+      ],
+      "sinks": [
+        { "id": "http", "name": "HttpClient", "matcher": { "calleePattern": ["HttpClient.GetAsync", "HttpClient.PostAsync", "WebClient.DownloadString"] } }
+      ]
+    },
+    {
+      "id": "cs-deser",
+      "title": "Unsafe Deserialization",
+      "severity": "high",
+      "owasp": "A08:2021 Software and Data Integrity Failures",
+      "kind": "taint",
+      "sources": [
+        { "id": "req", "name": "Request.QueryString", "matcher": { "calleePattern": ["Request.QueryString*", "Request.Form*"] } }
+      ],
+      "sinks": [
+        { "id": "binary", "name": "BinaryFormatter.Deserialize", "matcher": { "calleePattern": ["BinaryFormatter.Deserialize"] } }
+      ]
+    },
+    {
+      "id": "cs-xss-template",
+      "title": "Server Template XSS",
+      "severity": "medium",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "req", "name": "Request.QueryString", "matcher": { "calleePattern": ["Request.QueryString*", "Request.Form*"] } }
+      ],
+      "sinks": [
+        { "id": "write", "name": "Response.Write", "matcher": { "calleePattern": ["Response.Write"] } }
+      ]
+    },
+    {
+      "id": "cs-weak-crypto",
+      "title": "Weak Crypto",
+      "severity": "medium",
+      "owasp": "A02:2021 Cryptographic Failures",
+      "kind": "direct",
+      "calleePattern": ["MD5.Create", "SHA1.Create", "*MD5*", "*SHA1*"]
+    },
+    {
+      "id": "cs-hardcoded-secret",
+      "title": "Hardcoded Secret",
+      "severity": "medium",
+      "owasp": "A02:2021 Cryptographic Failures",
+      "kind": "secret",
+      "literalPattern": "(api|secret|token|password|passwd|pwd|key)[^\\n\\r]{0,20}[\"'][A-Za-z0-9_\\-]{8,}[\"']"
+    }
+  ]
+}

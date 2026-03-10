@@ -1,0 +1,86 @@
+{
+  "language": "swift",
+  "rules": [
+    {
+      "id": "swift-sqli",
+      "title": "SQL Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "param", "name": "request.query", "matcher": { "calleePattern": ["request.query*", "request.form*"] } }
+      ],
+      "sinks": [
+        { "id": "sql", "name": "execute", "matcher": { "calleePattern": ["*.execute", "*.executeQuery"] } }
+      ]
+    },
+    {
+      "id": "swift-cmd",
+      "title": "Command Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "param", "name": "request.query", "matcher": { "calleePattern": ["request.query*", "request.form*"] } }
+      ],
+      "sinks": [
+        { "id": "process", "name": "Process", "matcher": { "calleePattern": ["Process", "Process.run"] } }
+      ]
+    },
+    {
+      "id": "swift-path",
+      "title": "Path Traversal",
+      "severity": "high",
+      "owasp": "A01:2021 Broken Access Control",
+      "kind": "taint",
+      "sources": [
+        { "id": "param", "name": "request.query", "matcher": { "calleePattern": ["request.query*", "request.form*"] } }
+      ],
+      "sinks": [
+        { "id": "file", "name": "FileHandle", "matcher": { "calleePattern": ["FileHandle", "String.init", "Data.init"] } }
+      ]
+    },
+    {
+      "id": "swift-ssrf",
+      "title": "Server-Side Request Forgery",
+      "severity": "high",
+      "owasp": "A10:2021 Server-Side Request Forgery",
+      "kind": "taint",
+      "sources": [
+        { "id": "param", "name": "request.query", "matcher": { "calleePattern": ["request.query*", "request.form*"] } }
+      ],
+      "sinks": [
+        { "id": "urlsession", "name": "URLSession", "matcher": { "calleePattern": ["URLSession.shared.dataTask", "URLSession.dataTask"] } }
+      ]
+    },
+    {
+      "id": "swift-xss-template",
+      "title": "Server Template XSS",
+      "severity": "medium",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "param", "name": "request.query", "matcher": { "calleePattern": ["request.query*", "request.form*"] } }
+      ],
+      "sinks": [
+        { "id": "render", "name": "render", "matcher": { "calleePattern": ["render"] } }
+      ]
+    },
+    {
+      "id": "swift-weak-crypto",
+      "title": "Weak Crypto",
+      "severity": "medium",
+      "owasp": "A02:2021 Cryptographic Failures",
+      "kind": "direct",
+      "calleePattern": ["*MD5*", "*SHA1*"]
+    },
+    {
+      "id": "swift-hardcoded-secret",
+      "title": "Hardcoded Secret",
+      "severity": "medium",
+      "owasp": "A02:2021 Cryptographic Failures",
+      "kind": "secret",
+      "literalPattern": "(api|secret|token|password|passwd|pwd|key)[^\\n\\r]{0,20}[\"'][A-Za-z0-9_\\-]{8,}[\"']"
+    }
+  ]
+}

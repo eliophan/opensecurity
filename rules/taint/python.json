@@ -1,0 +1,108 @@
+{
+  "language": "python",
+  "rules": [
+    {
+      "id": "py-sqli",
+      "title": "SQL Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "req-args", "name": "request.args.get", "matcher": { "calleePrefix": ["request.args.get", "request.form.get", "request.values.get"] } },
+        { "id": "input", "name": "input", "matcher": { "callee": ["input", "raw_input"] } }
+      ],
+      "sinks": [
+        { "id": "cursor-exec", "name": "cursor.execute", "matcher": { "calleePattern": ["*.execute", "*.executemany"] } }
+      ],
+      "sanitizers": [
+        { "id": "param", "name": "param", "matcher": { "calleePattern": ["*.execute"] } }
+      ]
+    },
+    {
+      "id": "py-cmd",
+      "title": "Command Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "req", "name": "request.args.get", "matcher": { "calleePrefix": ["request.args.get", "request.form.get", "request.values.get"] } },
+        { "id": "input", "name": "input", "matcher": { "callee": ["input", "raw_input"] } }
+      ],
+      "sinks": [
+        { "id": "os-system", "name": "os.system", "matcher": { "callee": ["os.system"] } },
+        { "id": "subprocess", "name": "subprocess", "matcher": { "calleePrefix": ["subprocess.run", "subprocess.call", "subprocess.Popen"] } }
+      ]
+    },
+    {
+      "id": "py-path",
+      "title": "Path Traversal",
+      "severity": "high",
+      "owasp": "A01:2021 Broken Access Control",
+      "kind": "taint",
+      "sources": [
+        { "id": "req", "name": "request.args.get", "matcher": { "calleePrefix": ["request.args.get", "request.form.get", "request.values.get"] } }
+      ],
+      "sinks": [
+        { "id": "open", "name": "open", "matcher": { "callee": ["open"] } },
+        { "id": "os-open", "name": "os.open", "matcher": { "calleePrefix": ["os.open", "os.listdir", "os.remove"] } }
+      ]
+    },
+    {
+      "id": "py-ssrf",
+      "title": "Server-Side Request Forgery",
+      "severity": "high",
+      "owasp": "A10:2021 Server-Side Request Forgery",
+      "kind": "taint",
+      "sources": [
+        { "id": "req", "name": "request.args.get", "matcher": { "calleePrefix": ["request.args.get", "request.form.get", "request.values.get"] } }
+      ],
+      "sinks": [
+        { "id": "requests", "name": "requests", "matcher": { "calleePrefix": ["requests.get", "requests.post", "requests.request"] } },
+        { "id": "urllib", "name": "urllib.request.urlopen", "matcher": { "calleePrefix": ["urllib.request.urlopen"] } }
+      ]
+    },
+    {
+      "id": "py-deser",
+      "title": "Unsafe Deserialization",
+      "severity": "high",
+      "owasp": "A08:2021 Software and Data Integrity Failures",
+      "kind": "taint",
+      "sources": [
+        { "id": "req", "name": "request.args.get", "matcher": { "calleePrefix": ["request.args.get", "request.form.get", "request.values.get"] } }
+      ],
+      "sinks": [
+        { "id": "pickle", "name": "pickle.loads", "matcher": { "calleePrefix": ["pickle.loads", "pickle.load"] } },
+        { "id": "yaml", "name": "yaml.load", "matcher": { "calleePrefix": ["yaml.load"] } }
+      ]
+    },
+    {
+      "id": "py-xss-template",
+      "title": "Server Template XSS",
+      "severity": "medium",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "req", "name": "request.args.get", "matcher": { "calleePrefix": ["request.args.get", "request.form.get", "request.values.get"] } }
+      ],
+      "sinks": [
+        { "id": "render", "name": "render_template", "matcher": { "calleePrefix": ["render_template", "render"] } }
+      ]
+    },
+    {
+      "id": "py-weak-crypto",
+      "title": "Weak Crypto",
+      "severity": "medium",
+      "owasp": "A02:2021 Cryptographic Failures",
+      "kind": "direct",
+      "calleePattern": ["*md5*", "*sha1*", "hashlib.md5", "hashlib.sha1"]
+    },
+    {
+      "id": "py-hardcoded-secret",
+      "title": "Hardcoded Secret",
+      "severity": "medium",
+      "owasp": "A02:2021 Cryptographic Failures",
+      "kind": "secret",
+      "literalPattern": "(api|secret|token|password|passwd|pwd|key)[^\\n\\r]{0,20}[\"'][A-Za-z0-9_\\-]{8,}[\"']"
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "language": "rust",
+  "rules": [
+    {
+      "id": "rs-sqli",
+      "title": "SQL Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "query", "name": "web::Query", "matcher": { "calleePattern": ["Query::*", "Form::*"] } }
+      ],
+      "sinks": [
+        { "id": "sqlx", "name": "query", "matcher": { "calleePattern": ["sqlx::query", "*.execute", "*.query"] } }
+      ]
+    },
+    {
+      "id": "rs-cmd",
+      "title": "Command Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "query", "name": "web::Query", "matcher": { "calleePattern": ["Query::*", "Form::*"] } }
+      ],
+      "sinks": [
+        { "id": "cmd", "name": "Command::new", "matcher": { "calleePattern": ["Command::new"] } }
+      ]
+    },
+    {
+      "id": "rs-path",
+      "title": "Path Traversal",
+      "severity": "high",
+      "owasp": "A01:2021 Broken Access Control",
+      "kind": "taint",
+      "sources": [
+        { "id": "query", "name": "web::Query", "matcher": { "calleePattern": ["Query::*", "Form::*"] } }
+      ],
+      "sinks": [
+        { "id": "fs", "name": "fs::read", "matcher": { "calleePattern": ["fs::read", "fs::read_to_string", "File::open"] } }
+      ]
+    },
+    {
+      "id": "rs-ssrf",
+      "title": "Server-Side Request Forgery",
+      "severity": "high",
+      "owasp": "A10:2021 Server-Side Request Forgery",
+      "kind": "taint",
+      "sources": [
+        { "id": "query", "name": "web::Query", "matcher": { "calleePattern": ["Query::*", "Form::*"] } }
+      ],
+      "sinks": [
+        { "id": "reqwest", "name": "reqwest", "matcher": { "calleePattern": ["reqwest::get", "reqwest::Client.get", "reqwest::Client.post"] } }
+      ]
+    },
+    {
+      "id": "rs-xss-template",
+      "title": "Server Template XSS",
+      "severity": "medium",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "query", "name": "web::Query", "matcher": { "calleePattern": ["Query::*", "Form::*"] } }
+      ],
+      "sinks": [
+        { "id": "tmpl", "name": "Template.render", "matcher": { "calleePattern": ["*.render"] } }
+      ]
+    },
+    {
+      "id": "rs-weak-crypto",
+      "title": "Weak Crypto",
+      "severity": "medium",
+      "owasp": "A02:2021 Cryptographic Failures",
+      "kind": "direct",
+      "calleePattern": ["*md5*", "*sha1*"]
+    },
+    {
+      "id": "rs-hardcoded-secret",
+      "title": "Hardcoded Secret",
+      "severity": "medium",
+      "owasp": "A02:2021 Cryptographic Failures",
+      "kind": "secret",
+      "literalPattern": "(api|secret|token|password|passwd|pwd|key)[^\\n\\r]{0,20}[\"'][A-Za-z0-9_\\-]{8,}[\"']"
+    }
+  ]
+}

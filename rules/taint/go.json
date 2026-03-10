@@ -1,0 +1,86 @@
+{
+  "language": "go",
+  "rules": [
+    {
+      "id": "go-sqli",
+      "title": "SQL Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "query", "name": "r.URL.Query", "matcher": { "calleePattern": ["*.Query", "*.Query().Get", "*.FormValue"] } }
+      ],
+      "sinks": [
+        { "id": "sql-exec", "name": "db.Exec", "matcher": { "calleePattern": ["*.Exec", "*.Query", "*.QueryRow"] } }
+      ]
+    },
+    {
+      "id": "go-cmd",
+      "title": "Command Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "query", "name": "r.URL.Query", "matcher": { "calleePattern": ["*.Query", "*.Query().Get", "*.FormValue"] } }
+      ],
+      "sinks": [
+        { "id": "exec", "name": "exec.Command", "matcher": { "calleePattern": ["exec.Command"] } }
+      ]
+    },
+    {
+      "id": "go-path",
+      "title": "Path Traversal",
+      "severity": "high",
+      "owasp": "A01:2021 Broken Access Control",
+      "kind": "taint",
+      "sources": [
+        { "id": "query", "name": "r.URL.Query", "matcher": { "calleePattern": ["*.Query", "*.Query().Get", "*.FormValue"] } }
+      ],
+      "sinks": [
+        { "id": "os-open", "name": "os.Open", "matcher": { "calleePattern": ["os.Open", "os.OpenFile", "ioutil.ReadFile", "os.ReadFile"] } }
+      ]
+    },
+    {
+      "id": "go-ssrf",
+      "title": "Server-Side Request Forgery",
+      "severity": "high",
+      "owasp": "A10:2021 Server-Side Request Forgery",
+      "kind": "taint",
+      "sources": [
+        { "id": "query", "name": "r.URL.Query", "matcher": { "calleePattern": ["*.Query", "*.Query().Get", "*.FormValue"] } }
+      ],
+      "sinks": [
+        { "id": "http", "name": "http.Get", "matcher": { "calleePattern": ["http.Get", "http.Post", "http.NewRequest"] } }
+      ]
+    },
+    {
+      "id": "go-xss-template",
+      "title": "Server Template XSS",
+      "severity": "medium",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "query", "name": "r.URL.Query", "matcher": { "calleePattern": ["*.Query", "*.Query().Get", "*.FormValue"] } }
+      ],
+      "sinks": [
+        { "id": "tmpl", "name": "template.Execute", "matcher": { "calleePattern": ["*.Execute", "*.ExecuteTemplate"] } }
+      ]
+    },
+    {
+      "id": "go-weak-crypto",
+      "title": "Weak Crypto",
+      "severity": "medium",
+      "owasp": "A02:2021 Cryptographic Failures",
+      "kind": "direct",
+      "calleePattern": ["*md5*", "*sha1*"]
+    },
+    {
+      "id": "go-hardcoded-secret",
+      "title": "Hardcoded Secret",
+      "severity": "medium",
+      "owasp": "A02:2021 Cryptographic Failures",
+      "kind": "secret",
+      "literalPattern": "(api|secret|token|password|passwd|pwd|key)[^\\n\\r]{0,20}[\"'][A-Za-z0-9_\\-]{8,}[\"']"
+    }
+  ]
+}

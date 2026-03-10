@@ -1,0 +1,101 @@
+{
+  "language": "ruby",
+  "rules": [
+    {
+      "id": "rb-sqli",
+      "title": "SQL Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "params", "name": "params[]", "matcher": { "calleePattern": ["params.*", "params[]"] } }
+      ],
+      "sinks": [
+        { "id": "exec", "name": "execute", "matcher": { "calleePattern": ["*.execute", "*.exec_query"] } }
+      ]
+    },
+    {
+      "id": "rb-cmd",
+      "title": "Command Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "params", "name": "params[]", "matcher": { "calleePattern": ["params.*", "params[]"] } }
+      ],
+      "sinks": [
+        { "id": "system", "name": "system", "matcher": { "callee": ["system"] } },
+        { "id": "exec", "name": "exec", "matcher": { "callee": ["exec"] } }
+      ]
+    },
+    {
+      "id": "rb-path",
+      "title": "Path Traversal",
+      "severity": "high",
+      "owasp": "A01:2021 Broken Access Control",
+      "kind": "taint",
+      "sources": [
+        { "id": "params", "name": "params[]", "matcher": { "calleePattern": ["params.*", "params[]"] } }
+      ],
+      "sinks": [
+        { "id": "file", "name": "File.read", "matcher": { "calleePattern": ["File.read", "File.open"] } }
+      ]
+    },
+    {
+      "id": "rb-ssrf",
+      "title": "Server-Side Request Forgery",
+      "severity": "high",
+      "owasp": "A10:2021 Server-Side Request Forgery",
+      "kind": "taint",
+      "sources": [
+        { "id": "params", "name": "params[]", "matcher": { "calleePattern": ["params.*", "params[]"] } }
+      ],
+      "sinks": [
+        { "id": "nethttp", "name": "Net::HTTP", "matcher": { "calleePattern": ["Net::HTTP.*", "Net.HTTP.*"] } }
+      ]
+    },
+    {
+      "id": "rb-deser",
+      "title": "Unsafe Deserialization",
+      "severity": "high",
+      "owasp": "A08:2021 Software and Data Integrity Failures",
+      "kind": "taint",
+      "sources": [
+        { "id": "params", "name": "params[]", "matcher": { "calleePattern": ["params.*", "params[]"] } }
+      ],
+      "sinks": [
+        { "id": "marshal", "name": "Marshal.load", "matcher": { "calleePattern": ["Marshal.load"] } },
+        { "id": "yaml", "name": "YAML.load", "matcher": { "calleePattern": ["YAML.load"] } }
+      ]
+    },
+    {
+      "id": "rb-xss-template",
+      "title": "Server Template XSS",
+      "severity": "medium",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "params", "name": "params[]", "matcher": { "calleePattern": ["params.*", "params[]"] } }
+      ],
+      "sinks": [
+        { "id": "render", "name": "render", "matcher": { "calleePattern": ["render"] } }
+      ]
+    },
+    {
+      "id": "rb-weak-crypto",
+      "title": "Weak Crypto",
+      "severity": "medium",
+      "owasp": "A02:2021 Cryptographic Failures",
+      "kind": "direct",
+      "calleePattern": ["*MD5*", "*SHA1*", "Digest::MD5", "Digest::SHA1"]
+    },
+    {
+      "id": "rb-hardcoded-secret",
+      "title": "Hardcoded Secret",
+      "severity": "medium",
+      "owasp": "A02:2021 Cryptographic Failures",
+      "kind": "secret",
+      "literalPattern": "(api|secret|token|password|passwd|pwd|key)[^\\n\\r]{0,20}[\"'][A-Za-z0-9_\\-]{8,}[\"']"
+    }
+  ]
+}
