@@ -2,27 +2,24 @@
 
 OpenSecurity is an open-source CLI that scans entire repositories for security risks across application code, infrastructure/config files, and dependencies. It combines fast local analysis with optional AI scanning to keep coverage broad but practical.
 
-At a high level, it uses multiple engines to catch different classes of issues:
+At a high level, it uses multiple engines:
 
-- **Static analysis (AST + taint rules)** for JavaScript/TypeScript.
-- **Universal static patterns** for popular languages (Python, Go, Java, C#, Ruby, PHP, Rust, Kotlin, Swift, C/C++).
-- **Native AST/taint (Tree‑sitter)** for Python, Go, Java, C#, Ruby, PHP, Rust, Kotlin, Swift, C/C++.
-- **External language adapters** (when installed): Bandit (Python), gosec (Go), Brakeman (Ruby), Semgrep (Java/C#/PHP/Rust/Kotlin/Swift/C/C++).
-- **Infra/config patterns** for Dockerfile, Kubernetes/Helm YAML, Terraform, and generic YAML misconfigurations.
-- **Pattern detectors** for common mistakes (secrets, crypto misuse, unsafe deserialization).
-- **Dependency CVE scanning** for npm/PyPI.
-- **AI scanning** across all text files by default (can be disabled with `--no-ai`).
+- **JS/TS native AST + taint + patterns**
+- **Tree‑sitter native taint** for Python/Go/Java/C#/Ruby/PHP/Rust/Kotlin/Swift/C/C++
+- **External adapters** (Bandit, gosec, Brakeman, Semgrep) when installed
+- **Infra/config patterns** (Dockerfile, Kubernetes/Helm, Terraform, YAML)
+- **Dependency CVE scanning** for npm/PyPI
+- **Optional AI scan** across text files (`--no-ai` to disable)
 
 Universal patterns are heuristic (fast but shallow). Native AST/taint is a baseline multi‑lang engine and does not replace deep, language‑specific SAST.
 ## Scope
 
-- Native static analysis: JavaScript and TypeScript (AST + taint + patterns).
-- Native AST/taint via Tree‑sitter: Python, Go, Java, C#, Ruby, PHP, Rust, Kotlin, Swift, C/C++.
-- Adapter-based static analysis (if tools installed): Python, Go, Java, C#, PHP, Ruby, Rust, Kotlin, Swift, C/C++.
-- Infra/config static patterns: Dockerfile, Kubernetes/Helm YAML, Terraform, generic YAML.
-- Dependency scanning: npm and PyPI manifests.
-- AI scanning is optional and requires an API key (defaults to scanning all text files when enabled). If no API key is configured, AI scanning is skipped.
-- AI scanning is optional but **recommended** for deeper coverage across large repos and non-JS/TS code.
+- JS/TS native AST + taint + patterns
+- Tree‑sitter native taint for Python/Go/Java/C#/Ruby/PHP/Rust/Kotlin/Swift/C/C++
+- Optional adapters: Bandit, gosec, Brakeman, Semgrep
+- Infra/config patterns: Dockerfile, Kubernetes/Helm YAML, Terraform, generic YAML
+- Dependency scanning: npm and PyPI manifests
+- AI scanning is optional but **recommended** for deeper coverage; it requires an API key and is skipped when none is configured
 
 ## Non-Goals
 
