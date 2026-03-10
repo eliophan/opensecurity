@@ -29,6 +29,7 @@ Active. This repo is maintained and intended for open-source use. Contributions 
 - This tool is not a full SAST replacement or compliance scanner.
 - It does not execute or sandbox code.
 - It does not guarantee complete coverage of all vulnerabilities.
+- It does not replace specialized commercial scanners (e.g., Codex Security, Claude Security).
 
 ## Quick Start
 
