@@ -75,6 +75,9 @@ program
   .option("--ai-multi-agent", "split AI scan into worker batches")
   .option("--ai-batch-size <n>", "files per AI worker batch", (v) => Number(v))
   .option("--ai-batch-depth <n>", "path depth for AI batching", (v) => Number(v))
+  .option("--ai-cache", "enable AI per-file cache")
+  .option("--no-ai-cache", "disable AI per-file cache")
+  .option("--ai-cache-path <path>", "path to AI cache file")
   .option("--concurrency <n>", "parallel scan workers", (v) => Number(v))
   .option("--dependency-only", "only run dependency/CVE scanning")
   .option("--no-ai", "skip AI model scanning")
@@ -164,6 +167,8 @@ async function executeScan(opts: any) {
       aiMultiAgent: opts.aiMultiAgent,
       aiBatchSize: opts.aiBatchSize,
       aiBatchDepth: opts.aiBatchDepth,
+      aiCache: opts.aiCache,
+      aiCachePath: opts.aiCachePath,
       diffOnly: opts.diffOnly,
       diffBase: opts.diffBase,
       concurrency: opts.concurrency

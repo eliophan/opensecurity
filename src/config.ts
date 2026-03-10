@@ -26,6 +26,8 @@ export type ProjectConfig = {
   dataSensitivity?: "low" | "medium" | "high";
   maxChars?: number;
   concurrency?: number;
+  aiCache?: boolean;
+  aiCachePath?: string;
 };
 
 export const DEFAULT_INCLUDE = ["**/*"];
@@ -35,7 +37,9 @@ export const DEFAULT_EXCLUDE = [
   "**/dist/**",
   "**/build/**",
   "**/coverage/**",
-  "**/.opensecurity.json"
+  "**/.opensecurity.json",
+  "**/.opensecurity-cache.json",
+  "**/.opensecurity/ai-cache.json"
 ];
 
 const DEFAULT_GLOBALS: Required<Pick<GlobalConfig, "baseUrl" | "model" | "apiType" | "provider">> = {

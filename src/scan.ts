@@ -3,6 +3,7 @@ import path from "node:path";
 import traverseImport from "@babel/traverse";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import crypto from "node:crypto";
 import { loadGlobalConfig, loadProjectConfig, resolveProjectFilters, type Provider } from "./config.js";
 import { getOAuthProfile, isTokenExpired, saveOAuthProfile, type OAuthProfile } from "./oauthStore.js";
 import { walkFiles } from "./fileWalker.js";
@@ -67,6 +68,8 @@ export type ScanOptions = {
   aiMultiAgent?: boolean;
   aiBatchSize?: number;
   aiBatchDepth?: number;
+  aiCache?: boolean;
+  aiCachePath?: string;
   diffOnly?: boolean;
   diffBase?: string;
   dryRun?: boolean;
@@ -127,6 +130,10 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   }
 
   const tasks: Array<() => Promise<void>> = [];
+  const cacheEnabled = options.aiCache ?? projectConfig.aiCache ?? true;
+  const cachePath = resolveCachePath(cwd, options.aiCachePath ?? projectConfig.aiCachePath);
+  const aiCache = cacheEnabled ? await loadAiCache(cachePath) : { entries: new Map<string, CachedAiEntry>() };
+  const aiFindingsByFile = new Map<string, Finding[]>();
 
   if (!options.dependencyOnly) {
     const totalCodeFiles = files.filter((filePath) => isAnalyzableFile(filePath)).length;
@@ -222,6 +229,18 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
               const absPath = path.resolve(cwd, relPath);
               const cached = codeByPath.get(absPath);
               const content = cached?.content ?? await fs.readFile(absPath, "utf8");
+              const cacheKey = cacheEnabled ? computeCacheKey(provider, model, content) : undefined;
+              if (cacheKey) {
+                const cachedEntry = aiCache.entries.get(relPath);
+                if (cachedEntry && cachedEntry.hash === cacheKey) {
+                  const cachedFindings = cachedEntry.findings.map((f) => ({ ...f }));
+                  for (const finding of cachedFindings) {
+                    findings.push(finding);
+                  }
+                  aiFindingsByFile.set(relPath, cachedFindings);
+                  continue;
+                }
+              }
               const chunks = cached?.parsed
                 ? chunkCodeByBoundary(content, cached.parsed.ast, maxChars)
                 : chunkText(content, maxChars);
@@ -261,12 +280,13 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
                     })();
 
                 if (!parsed?.findings) continue;
+                const bucket = aiFindingsByFile.get(relPath) ?? [];
                 for (const finding of parsed.findings) {
-                  findings.push({
-                    ...finding,
-                    file: finding.file ?? relPath
-                  });
+                  const normalized = { ...finding, file: finding.file ?? relPath } as Finding;
+                  findings.push(normalized);
+                  bucket.push(normalized);
                 }
+                aiFindingsByFile.set(relPath, bucket);
               }
             }
           });
@@ -280,6 +300,18 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
             const chunkIndex = i + 1;
             const totalChunks = chunks.length;
             tasks.push(async () => {
+              const cacheKey = cacheEnabled ? computeCacheKey(provider, model, file.content) : undefined;
+              if (cacheKey) {
+                const cachedEntry = aiCache.entries.get(file.relPath);
+                if (cachedEntry && cachedEntry.hash === cacheKey) {
+                  const cachedFindings = cachedEntry.findings.map((f) => ({ ...f }));
+                  for (const finding of cachedFindings) {
+                    findings.push(finding);
+                  }
+                  aiFindingsByFile.set(file.relPath, cachedFindings);
+                  return;
+                }
+              }
               if (options.onProgress) {
                 options.onProgress({
                   file: file.relPath,
@@ -313,12 +345,13 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
                   })();
 
               if (!parsed?.findings) return;
+              const bucket = aiFindingsByFile.get(file.relPath) ?? [];
               for (const finding of parsed.findings) {
-                findings.push({
-                  ...finding,
-                  file: finding.file ?? file.relPath
-                });
+                const normalized = { ...finding, file: finding.file ?? file.relPath } as Finding;
+                findings.push(normalized);
+                bucket.push(normalized);
               }
+              aiFindingsByFile.set(file.relPath, bucket);
             });
           }
         }
@@ -335,6 +368,18 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
               const chunkIndex = i + 1;
               const totalChunks = chunks.length;
               tasks.push(async () => {
+                const cacheKey = cacheEnabled ? computeCacheKey(provider, model, content) : undefined;
+                if (cacheKey) {
+                  const cachedEntry = aiCache.entries.get(relPath);
+                  if (cachedEntry && cachedEntry.hash === cacheKey) {
+                    const cachedFindings = cachedEntry.findings.map((f) => ({ ...f }));
+                    for (const finding of cachedFindings) {
+                      findings.push(finding);
+                    }
+                    aiFindingsByFile.set(relPath, cachedFindings);
+                    return;
+                  }
+                }
                 if (options.onProgress) {
                   options.onProgress({
                     file: relPath,
@@ -368,12 +413,13 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
                     })();
 
                 if (!parsed?.findings) return;
+                const bucket = aiFindingsByFile.get(relPath) ?? [];
                 for (const finding of parsed.findings) {
-                  findings.push({
-                    ...finding,
-                    file: finding.file ?? relPath
-                  });
+                  const normalized = { ...finding, file: finding.file ?? relPath } as Finding;
+                  findings.push(normalized);
+                  bucket.push(normalized);
                 }
+                aiFindingsByFile.set(relPath, bucket);
               });
             }
           }
@@ -410,6 +456,20 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   }
 
   await runWithConcurrency(tasks, concurrency);
+
+  if (cacheEnabled) {
+    for (const [relPath, fileFindings] of aiFindingsByFile.entries()) {
+      const absPath = path.resolve(cwd, relPath);
+      try {
+        const content = await fs.readFile(absPath, "utf8");
+        const hash = computeCacheKey(provider, model, content);
+        aiCache.entries.set(relPath, { hash, findings: fileFindings });
+      } catch {
+        // ignore missing files
+      }
+    }
+    await saveAiCache(cachePath, aiCache);
+  }
 
   return { findings: dedupeFindings(findings) };
 }
@@ -1131,6 +1191,47 @@ export function createBatches(groups: Map<string, string[]>, batchSize: number):
     }
   }
   return batches;
+}
+
+type CachedAiEntry = { hash: string; findings: Finding[] };
+
+function resolveCachePath(cwd: string, override?: string): string {
+  if (override && override.trim()) {
+    return path.isAbsolute(override) ? override : path.join(cwd, override);
+  }
+  return path.join(cwd, ".opensecurity", "ai-cache.json");
+}
+
+async function loadAiCache(cachePath: string): Promise<{ entries: Map<string, CachedAiEntry> }> {
+  try {
+    const raw = await fs.readFile(cachePath, "utf8");
+    const parsed = JSON.parse(raw) as Record<string, CachedAiEntry>;
+    const entries = new Map<string, CachedAiEntry>(Object.entries(parsed ?? {}));
+    return { entries };
+  } catch (err: any) {
+    if (err?.code === "ENOENT") return { entries: new Map() };
+    return { entries: new Map() };
+  }
+}
+
+async function saveAiCache(cachePath: string, cache: { entries: Map<string, CachedAiEntry> }): Promise<void> {
+  const obj: Record<string, CachedAiEntry> = {};
+  for (const [key, value] of cache.entries.entries()) {
+    obj[key] = value;
+  }
+  await fs.mkdir(path.dirname(cachePath), { recursive: true });
+  await fs.writeFile(cachePath, JSON.stringify(obj, null, 2), "utf8");
+}
+
+function computeCacheKey(provider: Provider, model: string, content: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(provider)
+    .update("|")
+    .update(model)
+    .update("|")
+    .update(content)
+    .digest("hex");
 }
 
 const execFileAsync = promisify(execFile);

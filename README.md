@@ -82,6 +82,9 @@ Common options:
 - `--ai-multi-agent`: split AI scan into worker batches
 - `--ai-batch-size <n>`: files per AI worker batch (default: 25)
 - `--ai-batch-depth <n>`: path depth for AI batching (default: 2)
+- `--ai-cache`: enable AI per-file cache (default)
+- `--no-ai-cache`: disable AI per-file cache
+- `--ai-cache-path <path>`: path to AI cache file
 - `--dependency-only`: only run dependency scan
 - `--no-ai`: disable AI scanning
 - `--dry-run`: list matched files without scanning
