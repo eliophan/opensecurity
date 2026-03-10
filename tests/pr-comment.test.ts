@@ -11,7 +11,7 @@ function runPrComment(inputJson: string): string {
     try {
         const result = execFileSync(
             "npx",
-            ["tsx", path.resolve("src/pr-comment.ts"), inputFile],
+            ["tsx", path.resolve("src/ui/pr-comment.ts"), inputFile],
             { cwd: path.resolve("."), encoding: "utf8", timeout: 10000 }
         );
         return result;
