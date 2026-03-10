@@ -11,6 +11,8 @@ async function createTempDir(): Promise<string> {
 describe("dependency scan", () => {
   it("finds CVEs from cache and adds recommendations", async () => {
     const root = await createTempDir();
+    const prevConfigHome = process.env.OPENSECURITY_CONFIG_HOME;
+    process.env.OPENSECURITY_CONFIG_HOME = path.join(root, ".config");
     const pkg = {
       name: "demo",
       version: "1.0.0",
@@ -44,10 +46,18 @@ describe("dependency scan", () => {
     const depFinding = result.findings.find((finding) => finding.cveId === "CVE-2020-0001");
     expect(depFinding).toBeTruthy();
     expect(depFinding?.recommendation).toContain("1.3.1");
+
+    if (prevConfigHome === undefined) {
+      delete process.env.OPENSECURITY_CONFIG_HOME;
+    } else {
+      process.env.OPENSECURITY_CONFIG_HOME = prevConfigHome;
+    }
   });
 
   it("adds simulation data when enabled", async () => {
     const root = await createTempDir();
+    const prevConfigHome = process.env.OPENSECURITY_CONFIG_HOME;
+    process.env.OPENSECURITY_CONFIG_HOME = path.join(root, ".config");
     await fs.writeFile(
       path.join(root, "package.json"),
       JSON.stringify({ name: "demo", version: "1.0.0", dependencies: { lodash: "4.17.0" } }, null, 2)
@@ -88,5 +98,11 @@ describe("dependency scan", () => {
     const result = await scan({ cwd: root, cveCachePath: "cve-cache.json", simulate: true });
     const finding = result.findings.find((f) => f.cveId === "CVE-2021-0002");
     expect(finding?.simulation?.payload).toBeTruthy();
+
+    if (prevConfigHome === undefined) {
+      delete process.env.OPENSECURITY_CONFIG_HOME;
+    } else {
+      process.env.OPENSECURITY_CONFIG_HOME = prevConfigHome;
+    }
   });
 });
