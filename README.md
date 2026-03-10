@@ -35,20 +35,6 @@ Active. This repo is maintained and intended for open-source use. Contributions 
 - For compliance-grade coverage, use dedicated SAST/compliance tooling.
 - Use it as a complementary signal, not a single source of truth.
 
-## Quick Start
-
-```bash
-npm install
-npm run dev -- scan --dry-run
-```
-
-Build the CLI:
-
-```bash
-npm run build
-./dist/cli.js scan --dry-run
-```
-
 ## Install
 
 Install from npm (required for normal use):
@@ -59,6 +45,30 @@ opensecurity scan --dry-run
 ```
 
 Package: `https://www.npmjs.com/package/opensecurity`
+
+## Quick Start (Users)
+
+1) Configure API key (optional, only if you want AI scanning):
+
+```bash
+opensecurity login --mode api_key --provider openai
+```
+
+2) Run a scan:
+
+```bash
+opensecurity scan
+```
+
+3) Common options:
+
+```bash
+opensecurity scan --diff-only
+opensecurity scan --no-ai
+opensecurity scan --provider anthropic --model claude-sonnet-4-20250514
+```
+
+If no API key is configured, AI scanning is skipped automatically.
 
 ## Supported Platforms
 
