@@ -1,45 +1,157 @@
-# OpenSecurity (Outdated)
+# OpenSecurity
 
-> **OUTDATED / ARCHIVED**
-> This repository is no longer maintained and its implementation and documentation are outdated.
-> Do not rely on this project for production security scanning.
-> I use this to perform a security scan of the entire codebase before claude/codex security is activated.
+OpenSecurity is an open-source CLI for scanning JavaScript/TypeScript codebases for security risks.
+It combines:
 
-## Current Guidance (Use These Instead)
+- Static analysis with AST-based taint rules (OWASP-focused).
+- Dependency scanning with CVE lookup (local cache or API).
+- Optional AI-assisted scanning for deeper findings.
 
-If you're looking for current, supported security scanning solutions, refer to:
+## Quick Start
 
-- [OpenAI Codex Security](https://developers.openai.com/codex/security)
-- [Claude Code Security](https://claude.com/solutions/claude-code-security)
+```bash
+npm install
+npm run dev -- scan --dry-run
+```
 
-These products describe modern, actively maintained approaches for code security scanning, validation, and remediation workflows.
+Build the CLI:
 
-## What This Repo Contains (Historical)
+```bash
+npm run build
+./dist/cli.js scan --dry-run
+```
 
-This project was an experimental, open-source CLI that combined:
+## Features
 
-- Deterministic static analysis (AST rules for JS/TS)
-- Optional AI-assisted review
-- Dependency CVE lookup via a local cache
-- Text/JSON reporting
+- AST taint engine with configurable sources/sinks/sanitizers.
+- OWASP-aligned default rules (injection, SSRF, path traversal, XSS templates, SQLi).
+- Dependency scanning for npm and PyPI (`package.json`, `package-lock.json`, `requirements.txt`).
+- Text, JSON, and SARIF output.
+- Optional AI scan (API key or OAuth flow).
+- Configurable include/exclude filters and scan scope.
 
-The original CLI entry point is in `src/cli.ts`, with compiled output in `dist/`.
+## CLI
 
-## Confidentiality & Secrets (Read This)
+### `scan`
 
-- **No secrets should ever be committed.** This repo must not contain API keys, tokens, or credentials.
-- Global config was stored outside the repo at `~/.config/opensecurity/config.json`.
-  - If you used this project in the past, verify that file does **not** contain any active secrets.
-  - Rotate and revoke any credentials that may have been exposed.
-- Do not add real customer data, production logs, or private datasets to this repository.
+```bash
+opensecurity scan [options]
+```
 
-## Safety Notes
+Common options:
 
-Because this repo is outdated:
+- `--format <format>`: `text|json|sarif` (default: `text`)
+- `--include <pattern...>` / `--exclude <pattern...>`: override project filters
+- `--rules <path>`: rules JSON override
+- `--cve-cache <path>`: CVE cache JSON
+- `--cve-api-url <url>`: CVE lookup API endpoint
+- `--simulate`: include payload + impact for dependency findings
+- `--dependency-only`: only run dependency scan
+- `--no-ai`: disable AI scanning
+- `--dry-run`: list matched files without scanning
+- `--fail-on <severity>`: exit 1 if findings >= severity
+- `--sarif-output <path>`: write SARIF alongside primary output
+- `--concurrency <n>`: parallel scan workers (default: 2)
+- `--max-chars <n>`: max chars per chunk for AI scanning
 
-- The scanner may miss vulnerabilities or generate incorrect results.
-- Dependencies and model integrations may be stale or insecure.
-- There is no guarantee of ongoing maintenance or fixes.
+### `login`
+
+```bash
+opensecurity login --mode oauth
+opensecurity login --mode api_key
+```
+
+Stores auth config in `~/.config/opensecurity/config.json`.
+
+### `proxy`
+
+```bash
+opensecurity proxy --port 8787
+```
+
+Runs a local OAuth proxy for the OAuth flow.
+
+### `telemetry`
+
+```bash
+opensecurity telemetry on
+opensecurity telemetry off
+```
+
+## Configuration
+
+Project config: `.opensecurity.json`
+
+```json
+{
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["**/*.test.ts"],
+  "rulesPath": "rules.json",
+  "cveCachePath": "cve-cache.json",
+  "cveApiUrl": "https://example.com/osv",
+  "dataSensitivity": "medium",
+  "maxChars": 4000,
+  "concurrency": 2
+}
+```
+
+Global config: `~/.config/opensecurity/config.json`
+
+```json
+{
+  "apiKey": "sk-...",
+  "baseUrl": "https://api.openai.com/v1/responses",
+  "model": "gpt-4o-mini",
+  "apiType": "responses",
+  "authMode": "api_key",
+  "authProfileId": "codex",
+  "oauthProvider": "proxy"
+}
+```
+
+## Rules
+
+Default rules are in `src/rules/defaultRules.ts`.
+You can override with a JSON file (`--rules` or `rulesPath`).
+
+Rule schema (simplified):
+
+```json
+{
+  "id": "rule-id",
+  "name": "Human name",
+  "severity": "low|medium|high|critical",
+  "owasp": "A03:2021 Injection",
+  "sources": [{ "id": "src", "name": "getUserInput", "matcher": { "callee": "getUserInput" } }],
+  "sinks": [{ "id": "sink", "name": "eval", "matcher": { "callee": "eval" } }],
+  "sanitizers": [{ "id": "san", "name": "escape", "matcher": { "callee": "escape" } }]
+}
+```
+
+## Output
+
+- **Text**: grouped by severity
+- **JSON**: machine-readable, includes `schemaVersion`
+- **SARIF**: for CI and code scanning tools
+
+## Language Support
+
+- Static analysis: JavaScript and TypeScript
+- Dependency scanning: npm and PyPI manifests
+
+## Security Notes
+
+- Do not commit secrets.
+- AI scanning sends code chunks to the configured API endpoint.
+- Use `--no-ai` if you want purely local scanning.
+
+## Development
+
+```bash
+npm install
+npm run dev -- scan --dry-run
+npm test
+```
 
 ## License
 
