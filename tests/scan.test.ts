@@ -57,4 +57,25 @@ describe("scan options", () => {
       process.env.OPENSECURITY_CONFIG_HOME = prevConfigHome;
     }
   });
+
+  it("detects path traversal via filesystem sinks", async () => {
+    const root = await createTempDir();
+    const prevConfigHome = process.env.OPENSECURITY_CONFIG_HOME;
+    process.env.OPENSECURITY_CONFIG_HOME = path.join(root, ".config");
+    await fs.writeFile(
+      path.join(root, "a.ts"),
+      "import fs from 'node:fs';\nconst input = getUserInput();\nfs.readFile(input, () => {});",
+      "utf8"
+    );
+
+    const result = await scan({ cwd: root, include: ["**/*.ts"], exclude: [] });
+    const hasRule = result.findings.some((finding) => finding.id === "js-path-traversal");
+    expect(hasRule).toBe(true);
+
+    if (prevConfigHome === undefined) {
+      delete process.env.OPENSECURITY_CONFIG_HOME;
+    } else {
+      process.env.OPENSECURITY_CONFIG_HOME = prevConfigHome;
+    }
+  });
 });
