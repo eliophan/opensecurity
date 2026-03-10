@@ -1103,15 +1103,18 @@ export function groupFilesByModule(relPaths: string[], depth: number): Map<strin
   for (const relPath of relPaths) {
     const normalized = relPath.split(path.sep).join("/");
     const parts = normalized.split("/");
+    const last = parts[parts.length - 1] ?? "";
+    const isFile = last.includes(".");
+    const dirParts = isFile ? parts.slice(0, -1) : parts;
     let key = "root";
-    if (parts[0] === "src" && parts.length > 1) {
-      key = ["src", ...parts.slice(1, 1 + depth)].join("/");
-    } else if (parts[0] === "packages" && parts.length > 1) {
-      key = ["packages", parts[1]].join("/");
-    } else if (parts[0] === "apps" && parts.length > 1) {
-      key = ["apps", parts[1]].join("/");
-    } else if (parts.length > 1) {
-      key = parts[0];
+    if (dirParts[0] === "src" && dirParts.length > 1) {
+      key = ["src", ...dirParts.slice(1, 1 + depth)].join("/");
+    } else if (dirParts[0] === "packages" && dirParts.length > 1) {
+      key = ["packages", dirParts[1]].join("/");
+    } else if (dirParts[0] === "apps" && dirParts.length > 1) {
+      key = ["apps", dirParts[1]].join("/");
+    } else if (dirParts.length > 1) {
+      key = dirParts[0];
     }
     const bucket = groups.get(key) ?? [];
     bucket.push(normalized);
