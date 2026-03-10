@@ -179,6 +179,8 @@ API keys can be stored via `opensecurity login --mode api_key --provider <provid
 - `XAI_API_KEY`
 - `COHERE_API_KEY`
 
+When an API key is available, the model picker will try to fetch a live model list for the provider.
+
 ## Development
 
 ```bash
