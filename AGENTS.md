@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-- `src/` contains the TypeScript source (CLI entry at `src/cli.ts`).
+- `src/` contains the TypeScript source (CLI entry at `src/ui/cli.ts`).
 - `tests/` holds Vitest tests named `*.test.ts` (e.g., `tests/scan.test.ts`).
 - `dist/` is the compiled output (`npm run build`) and exposes the CLI binaries.
 - `examples/` provides intentionally vulnerable samples for local scans.

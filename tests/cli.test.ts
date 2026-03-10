@@ -12,7 +12,7 @@ async function createTempDir(): Promise<string> {
 }
 
 async function runCli(args: string[]): Promise<{ stdout: string; stderr: string }> {
-  const cliPath = path.resolve("src/cli.ts");
+  const cliPath = path.resolve("src/ui/cli.ts");
   const nodeArgs = ["--import", "tsx", cliPath, ...args];
   const { stdout, stderr } = await execFileAsync(process.execPath, nodeArgs, {
     cwd: process.cwd(),

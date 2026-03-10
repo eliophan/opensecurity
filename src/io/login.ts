@@ -2,7 +2,7 @@ import readline from "node:readline";
 import http from "node:http";
 import crypto from "node:crypto";
 import { exec, spawn } from "node:child_process";
-import { loadGlobalConfig, saveGlobalConfig, type GlobalConfig, type Provider } from "./config.js";
+import { loadGlobalConfig, saveGlobalConfig, type GlobalConfig, type Provider } from "../core/config.js";
 import { saveOAuthProfile } from "./oauthStore.js";
 
 export function askQuestion(question: string): Promise<string> {

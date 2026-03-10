@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { saveMockToken } from "../src/login.js";
-import { getGlobalConfigPath } from "../src/config.js";
+import { saveMockToken } from "../src/io/login.js";
+import { getGlobalConfigPath } from "../src/core/config.js";
 
 async function createTempDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), "opensecurity-"));

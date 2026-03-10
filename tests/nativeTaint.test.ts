@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import type { LanguageConfig } from "../src/native/languages.js";
-import type { NativeRuleSet } from "../src/native/rules.js";
-import { runNativeTaint } from "../src/native/taint.js";
+import type { LanguageConfig } from "../src/engines/native/languages.js";
+import type { NativeRuleSet } from "../src/engines/native/rules.js";
+import { runNativeTaint } from "../src/engines/native/taint.js";
 
 type Node = {
   type: string;

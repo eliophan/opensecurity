@@ -1,4 +1,4 @@
-import type { Finding } from "../scan.js";
+import type { Finding } from "../core/scan.js";
 
 export type AdapterContext = {
   cwd: string;

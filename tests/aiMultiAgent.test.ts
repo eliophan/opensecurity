@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildPromptWithContext, createBatches, groupFilesByModule } from "../src/scan.js";
+import { buildPromptWithContext, createBatches, groupFilesByModule } from "../src/core/scan.js";
 
 describe("ai multi-agent batching", () => {
   it("groups files by module depth", () => {

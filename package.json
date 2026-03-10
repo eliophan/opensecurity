@@ -4,12 +4,12 @@
   "private": false,
   "type": "module",
   "bin": {
-    "opensecurity": "dist/cli.js",
-    "openSecurity": "dist/cli.js"
+    "opensecurity": "dist/ui/cli.js",
+    "openSecurity": "dist/ui/cli.js"
   },
   "scripts": {
-    "dev": "tsx src/cli.ts",
-    "proxy": "tsx src/proxy.ts",
+    "dev": "tsx src/ui/cli.ts",
+    "proxy": "tsx src/io/proxy.ts",
     "build": "tsc",
     "build-grammars": "tsx scripts/build-grammars.ts",
     "prepack": "npm run build",

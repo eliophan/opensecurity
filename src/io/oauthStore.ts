@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { getConfigDir } from "./config.js";
+import { getConfigDir } from "../core/config.js";
 
 export type OAuthProfile = {
   id: string;

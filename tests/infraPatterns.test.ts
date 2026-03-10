@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runInfraPatterns } from "../src/analysis/infraPatterns.js";
+import { runInfraPatterns } from "../src/engines/analysis/infraPatterns.js";
 
 describe("infra patterns", () => {
   it("detects dockerfile root user", () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parseSource } from "../src/analysis/ast.js";
-import { runTaintAnalysis } from "../src/analysis/taint.js";
+import { parseSource } from "../src/engines/analysis/ast.js";
+import { runTaintAnalysis } from "../src/engines/analysis/taint.js";
 
 const RULES = {
   sources: [{ id: "src-user", name: "getUserInput", matcher: { callee: "getUserInput" } }],

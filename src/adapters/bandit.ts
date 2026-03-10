@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import type { Adapter } from "./types.js";
-import type { Severity } from "../scan.js";
+import type { Severity } from "../core/scan.js";
 import { PYTHON_EXTS, matchesExtension } from "./languages.js";
 import { commandExists, extractJsonFromOutput, normalizePath } from "./utils.js";
 

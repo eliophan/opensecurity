@@ -1,5 +1,5 @@
 import path from "node:path";
-import type { Finding } from "../scan.js";
+import type { Finding } from "../core/scan.js";
 import type { Adapter } from "./types.js";
 import { banditAdapter } from "./bandit.js";
 import { brakemanAdapter } from "./brakeman.js";

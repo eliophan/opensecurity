@@ -9,7 +9,7 @@
  */
 
 import fs from "node:fs";
-import type { Finding, ScanResult, Severity } from "./scan.js";
+import type { Finding, ScanResult, Severity } from "../core/scan.js";
 
 const SEVERITY_EMOJI: Record<Severity, string> = {
     critical: "🔴",

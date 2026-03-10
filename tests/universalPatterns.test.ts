@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runUniversalPatterns } from "../src/analysis/universalPatterns.js";
+import { runUniversalPatterns } from "../src/engines/analysis/universalPatterns.js";
 
 describe("universal patterns", () => {
   it("detects Python command execution", () => {

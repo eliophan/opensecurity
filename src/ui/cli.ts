@@ -2,12 +2,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Command } from "commander";
-import { login } from "./login.js";
-import { startProxyServer } from "./proxy.js";
-import { scan, renderJsonReport, renderSarifReport, renderTextReport, listMatchedFiles } from "./scan.js";
-import { setTelemetryEnabled, trackEvent } from "./telemetry.js";
-import { loadGlobalConfig } from "./config.js";
-import { getOAuthProfile } from "./oauthStore.js";
+import { login } from "../io/login.js";
+import { startProxyServer } from "../io/proxy.js";
+import { scan, renderJsonReport, renderSarifReport, renderTextReport, listMatchedFiles } from "../core/scan.js";
+import { setTelemetryEnabled, trackEvent } from "../io/telemetry.js";
+import { loadGlobalConfig } from "../core/config.js";
+import { getOAuthProfile } from "../io/oauthStore.js";
 import { Logger, Spinner, formatDuration, pluralize, bold, severityColor } from "./progress.js";
 
 const program = new Command();

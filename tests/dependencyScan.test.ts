@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { scan } from "../src/scan.js";
+import { scan } from "../src/core/scan.js";
 
 async function createTempDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), "opensecurity-deps-"));

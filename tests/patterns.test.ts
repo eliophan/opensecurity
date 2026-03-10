@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parseSource } from "../src/analysis/ast.js";
-import { runPatternDetectors } from "../src/analysis/patterns.js";
+import { parseSource } from "../src/engines/analysis/ast.js";
+import { runPatternDetectors } from "../src/engines/analysis/patterns.js";
 
 describe("pattern detectors", () => {
   it("detects hardcoded secret values", () => {

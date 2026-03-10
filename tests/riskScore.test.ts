@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scoreRisk } from "../src/deps/scoring.js";
+import { scoreRisk } from "../src/engines/deps/scoring.js";
 
 const baseCve = {
   id: "CVE-TEST",

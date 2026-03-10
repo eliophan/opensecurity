@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { listMatchedFiles, scan, chunkCodeByBoundary } from "../src/scan.js";
-import { parseSource } from "../src/analysis/ast.js";
+import { listMatchedFiles, scan, chunkCodeByBoundary } from "../src/core/scan.js";
+import { parseSource } from "../src/engines/analysis/ast.js";
 
 async function createTempDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), "opensecurity-"));

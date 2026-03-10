@@ -1,5 +1,5 @@
 import os from "node:os";
-import { loadGlobalConfig, saveGlobalConfig, type GlobalConfig } from "./config.js";
+import { loadGlobalConfig, saveGlobalConfig, type GlobalConfig } from "../core/config.js";
 
 export type TelemetryEvent = {
     event: string;

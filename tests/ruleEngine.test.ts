@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parseSource } from "../src/analysis/ast.js";
-import { runRuleEngine, mapFindingsToOwasp } from "../src/analysis/rules.js";
+import { parseSource } from "../src/engines/analysis/ast.js";
+import { runRuleEngine, mapFindingsToOwasp } from "../src/engines/analysis/rules.js";
 
 const RULES = [
   {

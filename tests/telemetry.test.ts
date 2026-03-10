@@ -6,8 +6,8 @@ import {
     isTelemetryEnabled,
     setTelemetryEnabled,
     createEvent
-} from "../src/telemetry.js";
-import { loadGlobalConfig } from "../src/config.js";
+} from "../src/io/telemetry.js";
+import { loadGlobalConfig } from "../src/core/config.js";
 
 describe("telemetry", () => {
     let tmpDir: string;
