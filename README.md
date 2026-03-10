@@ -113,6 +113,15 @@ OpenSecurity can run optional external tools when they are installed and found o
 
 Adapters only run when matching files exist. Use `--disable-adapters` to skip or `--adapters` to whitelist.
 
+## Infra/Config Coverage
+
+Built-in infra checks include:
+
+- Dockerfile: `USER root`, privileged flags/capabilities.
+- Kubernetes/Helm YAML: `privileged`, `allowPrivilegeEscalation`, `readOnlyRootFilesystem:false`, `runAsNonRoot:false`, `runAsUser:0`, `seccompProfile: Unconfined`, `hostNetwork/hostPID/hostIPC`, `hostPath`.
+- Terraform: public security group ingress, public ACLs, public S3 ACLs, disabled S3 public access block, public RDS instances.
+- YAML: insecure TLS (`insecureSkipVerify`, `verify_ssl: false`).
+
 ## CLI
 
 ### `scan`
