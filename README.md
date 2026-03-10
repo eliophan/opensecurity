@@ -13,6 +13,8 @@ At a high level, OpenSecurity uses multiple engines to catch different classes o
 - **Dependency CVE scanning** for npm/PyPI.
 - **AI scanning** across all text files by default (can be disabled with `--no-ai`).
 
+Universal patterns are heuristic (fast but shallow). Native AST/taint is a baseline multi‑lang engine and does not replace deep, language‑specific SAST.
+
 ## Project Status
 
 Active. This repo is maintained and intended for open-source use. Contributions are welcome.
@@ -46,6 +48,8 @@ opensecurity scan --dry-run
 
 Package: `https://www.npmjs.com/package/opensecurity`
 
+No build step is required when installing from npm.
+
 ## Quick Start (Users)
 
 1) Configure API key (optional, only if you want AI scanning):
@@ -69,6 +73,7 @@ opensecurity scan --provider anthropic --model claude-sonnet-4-20250514
 ```
 
 If no API key is configured, AI scanning is skipped automatically.
+If you only want local scanning, you can skip login and run `opensecurity scan --no-ai`.
 
 ## Supported Platforms
 
@@ -332,13 +337,6 @@ Rule schema (simplified):
 - **JSON**: machine-readable, includes `schemaVersion`
 - **SARIF**: for CI and code scanning tools
 
-## Language Support
-
-- JS/TS: native AST + taint + patterns
-- Multi‑lang: Tree‑sitter native taint for Python, Go, Java, C#, Ruby, PHP, Rust, Kotlin, Swift, C/C++
-- External adapters (optional): Bandit, gosec, Brakeman, Semgrep
-- Infra/config: Dockerfile, Kubernetes/Helm YAML, Terraform, generic YAML
-- Dependency scanning: npm and PyPI manifests
 
 ## Security Notes
 
@@ -389,21 +387,15 @@ If you discover a vulnerability:
 
 For questions or help, open a GitHub issue with clear reproduction steps.
 
-## Development
+## Development (contributors)
 
 ```bash
 npm install
 npm run dev -- scan --dry-run
-npm test
-```
-
-Development (optional, for contributors):
-
-```bash
-npm install
 npm run build
 npm link
 opensecurity scan --dry-run
+npm test
 ```
 
 ## License
