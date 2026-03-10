@@ -399,21 +399,7 @@ async function selectFromList<T extends string | undefined>(
   message: string,
   choices: Array<{ name: string; value: T }>
 ): Promise<T> {
-  try {
-    return await interactiveSelect(message, choices);
-  } catch {
-    // fall through to numeric prompt
-  }
-
-  const options = choices
-    .map((c, idx) => `${idx + 1}. ${c.name}`)
-    .join("\n");
-  const answer = await askQuestion(`${message}\n${options}\nSelect number: `);
-  const index = Number(answer) - 1;
-  if (Number.isFinite(index) && index >= 0 && index < choices.length) {
-    return choices[index].value;
-  }
-  return choices[0]?.value;
+  return interactiveSelect(message, choices);
 }
 
 async function interactiveSelect<T extends string | undefined>(
