@@ -209,6 +209,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
       if (options.aiMultiAgent) {
         const batchSize = Math.max(1, options.aiBatchSize ?? 25);
         const batchDepth = Math.max(1, options.aiBatchDepth ?? 2);
+        const leaderContext = await buildLeaderContext(cwd);
         const relPaths = aiEligibleFiles.map((filePath) => path.relative(cwd, filePath));
         const grouped = groupFilesByModule(relPaths, batchDepth);
         const batches = createBatches(grouped, batchSize);
@@ -226,7 +227,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
                 : chunkText(content, maxChars);
 
               for (let i = 0; i < chunks.length; i += 1) {
-                const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
+                const prompt = buildPromptWithContext(relPath, chunks[i], i + 1, chunks.length, leaderContext);
                 if (options.onProgress) {
                   options.onProgress({
                     file: relPath,
@@ -531,6 +532,19 @@ function isRangeInside(inner: { start: number; end: number }, outer: { start: nu
 }
 
 function buildPrompt(filePath: string, chunk: string, index: number, total: number): string {
+  return buildPromptWithContext(filePath, chunk, index, total);
+}
+
+export function buildPromptWithContext(
+  filePath: string,
+  chunk: string,
+  index: number,
+  total: number,
+  context?: string
+): string {
+  const contextBlock = context
+    ? [`Context Summary:`, context.trim(), ``]
+    : [];
   return [
     "You are a security static analysis engine.",
     "Return JSON only.",
@@ -538,6 +552,7 @@ function buildPrompt(filePath: string, chunk: string, index: number, total: numb
     "Do not wrap in markdown.",
     "Do not add code fences.",
     "",
+    ...contextBlock,
     "Schema:",
     "{\"findings\":[{\"id\":string,\"severity\":\"low|medium|high|critical\",\"title\":string,\"description\":string,\"file\":string,\"line\":number}]}",
     "",
@@ -1083,7 +1098,7 @@ function isLikelyTextFile(filePath: string): boolean {
 
 type FileBatch = { key: string; files: string[] };
 
-function groupFilesByModule(relPaths: string[], depth: number): Map<string, string[]> {
+export function groupFilesByModule(relPaths: string[], depth: number): Map<string, string[]> {
   const groups = new Map<string, string[]>();
   for (const relPath of relPaths) {
     const normalized = relPath.split(path.sep).join("/");
@@ -1105,7 +1120,7 @@ function groupFilesByModule(relPaths: string[], depth: number): Map<string, stri
   return groups;
 }
 
-function createBatches(groups: Map<string, string[]>, batchSize: number): FileBatch[] {
+export function createBatches(groups: Map<string, string[]>, batchSize: number): FileBatch[] {
   const batches: FileBatch[] = [];
   for (const [key, files] of groups.entries()) {
     for (let i = 0; i < files.length; i += batchSize) {
@@ -1136,6 +1151,52 @@ async function getChangedFiles(cwd: string, baseRef: string): Promise<string[]> 
   } catch (err: any) {
     throw new Error("diff-only requires a git repository with a valid base ref.");
   }
+}
+
+async function buildLeaderContext(cwd: string): Promise<string> {
+  const parts: string[] = [];
+  const readIfExists = async (filePath: string) => {
+    try {
+      return await fs.readFile(filePath, "utf8");
+    } catch {
+      return "";
+    }
+  };
+
+  const readme = await readIfExists(path.join(cwd, "README.md"));
+  if (readme) {
+    parts.push("README:", truncateLines(readme, 12));
+  }
+
+  const pkgRaw = await readIfExists(path.join(cwd, "package.json"));
+  if (pkgRaw) {
+    try {
+      const pkg = JSON.parse(pkgRaw) as { name?: string; version?: string; description?: string };
+      parts.push(`package.json: ${[pkg.name, pkg.version, pkg.description].filter(Boolean).join(" | ")}`);
+    } catch {
+      parts.push("package.json: (unreadable)");
+    }
+  }
+
+  try {
+    const entries = await fs.readdir(cwd, { withFileTypes: true });
+    const top = entries
+      .filter((e) => ![".git", "node_modules", "dist", "build", "coverage"].includes(e.name))
+      .map((e) => (e.isDirectory() ? `${e.name}/` : e.name))
+      .slice(0, 30);
+    if (top.length) {
+      parts.push(`Top-level: ${top.join(", ")}`);
+    }
+  } catch {
+    // ignore
+  }
+
+  return parts.join("\n");
+}
+
+function truncateLines(text: string, maxLines: number): string {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length);
+  return lines.slice(0, maxLines).join("\n");
 }
 
 function dedupeFindings(findings: Finding[]): Finding[] {
