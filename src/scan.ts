@@ -82,8 +82,8 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const oauthProvider = globalConfig.oauthProvider ?? "proxy";
   const apiType = globalConfig.apiType ?? "responses";
   const model = options.model ?? globalConfig.model ?? "gpt-4o-mini";
-  const maxChars = options.maxChars ?? DEFAULT_MAX_CHARS;
-  const concurrency = Math.max(1, options.concurrency ?? DEFAULT_CONCURRENCY);
+  const maxChars = options.maxChars ?? projectConfig.maxChars ?? DEFAULT_MAX_CHARS;
+  const concurrency = Math.max(1, options.concurrency ?? projectConfig.concurrency ?? DEFAULT_CONCURRENCY);
   const maxRetries = Math.max(0, options.maxRetries ?? DEFAULT_MAX_RETRIES);
   const retryDelayMs = Math.max(0, options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS);
 

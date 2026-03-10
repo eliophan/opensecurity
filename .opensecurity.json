@@ -1,3 +1,5 @@
 {
-  "cveCachePath": "cve-cache.json"
+  "cveCachePath": "cve-cache.json",
+  "maxChars": 4000,
+  "concurrency": 2
 }

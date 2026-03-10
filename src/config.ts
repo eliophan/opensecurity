@@ -19,6 +19,8 @@ export type ProjectConfig = {
   cveCachePath?: string;
   cveApiUrl?: string;
   dataSensitivity?: "low" | "medium" | "high";
+  maxChars?: number;
+  concurrency?: number;
 };
 
 export const DEFAULT_INCLUDE = ["**/*"];
