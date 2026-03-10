@@ -1,11 +1,11 @@
 # OpenSecurity
 
-OpenSecurity is an open-source CLI for scanning codebases for security risks, with first-class static analysis for JavaScript/TypeScript and AI scanning across all text files by default.
-It combines:
+OpenSecurity is an open-source CLI that scans repositories for security risks using three engines:
 
-- Static analysis with AST-based taint rules (OWASP-focused).
-- Dependency scanning with CVE lookup (local cache or API).
-- Optional AI-assisted scanning for deeper findings.
+- **Static analysis (AST + taint rules)** for JavaScript/TypeScript.
+- **Pattern detectors** for common mistakes (secrets, crypto misuse, unsafe deserialization).
+- **Dependency CVE scanning** for npm/PyPI.
+- **AI scanning** across all text files by default (optional).
 
 ## Project Status
 
@@ -62,6 +62,32 @@ opensecurity scan --dry-run
 - Text, JSON, and SARIF output.
 - Optional AI scan (API key or OAuth flow) with multiple providers.
 - Configurable include/exclude filters and scan scope.
+
+## How It Works
+
+1. **File discovery**
+   - Walks the repository based on `include`/`exclude`.
+   - Optional `--diff-only` or `--path` to narrow scope.
+
+2. **Static analysis (JS/TS)**
+   - Parses JS/TS with Babel and runs taint rules (sources → sinks → sanitizers).
+   - Emits OWASP-aligned findings.
+
+3. **Pattern detectors (JS/TS)**
+   - Finds hardcoded secrets, insecure crypto, and unsafe deserialization.
+
+4. **AI scan (all text files by default)**
+   - Splits files into chunks and sends to the configured model.
+   - Optional multi‑agent batching with shared leader context.
+   - Optional per‑file cache to skip unchanged files.
+
+5. **Dependency scan**
+   - Reads `package.json`, `package-lock.json`, and `requirements.txt`.
+   - Matches against CVE cache or API and adds recommendations.
+
+6. **Reporting**
+   - Outputs text, JSON, or SARIF.
+   - Optional `--fail-on`/`--fail-on-high` for CI gating.
 
 ## CLI
 
