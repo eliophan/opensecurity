@@ -43,6 +43,8 @@ Active. This repo is maintained and intended for open-source use. Contributions 
 Install from npm (required for normal use):
 
 ```bash
+npm i -g n
+n 20
 npm i opensecurity
 ```
 
