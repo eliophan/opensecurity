@@ -33,6 +33,7 @@ export type RuleFinding = {
   severity: RuleSeverity;
   file: string;
   line?: number;
+  column?: number;
   message: string;
 };
 
@@ -67,6 +68,7 @@ export function runRuleEngine(ast: File, filePath: string, rules: OwaspRule[]): 
         severity: rule.severity,
         file: filePath,
         line: finding.line,
+        column: finding.column,
         message: `${rule.name}: ${finding.message}`
       });
     }

@@ -17,6 +17,7 @@ export type Finding = {
   description: string;
   file: string;
   line?: number;
+  column?: number;
   owasp?: string;
   category?: "code" | "dependency";
   packageName?: string;
@@ -132,6 +133,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
             description: `${finding.message} [${finding.owasp}]`,
             file: finding.file,
             line: finding.line,
+            column: finding.column,
             owasp: finding.owasp,
             category: "code"
           });
@@ -537,7 +539,11 @@ export function renderTextReport(result: ScanResult): string {
     if (!items.length) continue;
     lines.push(`${severity.toUpperCase()} (${items.length})`);
     for (const item of items) {
-      const location = item.line ? `${item.file}:${item.line}` : item.file;
+      const location = item.line
+        ? item.column
+          ? `${item.file}:${item.line}:${item.column}`
+          : `${item.file}:${item.line}`
+        : item.file;
       const owasp = item.owasp ? ` ${item.owasp}` : "";
       lines.push(`- [${item.id}] ${item.title}${owasp} (${location})`);
       lines.push(`  ${item.description}`);
@@ -576,7 +582,10 @@ export function renderSarifReport(result: ScanResult): string {
       }
     };
     if (finding.line) {
-      location.physicalLocation.region = { startLine: finding.line };
+      location.physicalLocation.region = {
+        startLine: finding.line,
+        ...(finding.column ? { startColumn: finding.column } : {})
+      };
     }
     return {
       ruleId: finding.id,
@@ -601,8 +610,8 @@ export function renderSarifReport(result: ScanResult): string {
 
 function isAnalyzableFile(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase();
-  // Only send text-based source files to the AI to prevent binary leakage or wasted tokens
-  const supported = [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".py", ".go", ".rs", ".java", ".c", ".cpp"];
+  // JS/TS only: Babel AST parser expects JS/TS syntax.
+  const supported = [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"];
   return supported.includes(ext);
 }
 

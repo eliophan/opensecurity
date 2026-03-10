@@ -3,7 +3,9 @@ import type { File, CallExpression, Identifier, MemberExpression } from "@babel/
 import * as t from "@babel/types";
 
 export type CallMatcher = {
-  callee: string | string[];
+  callee?: string | string[];
+  calleePattern?: string | string[];
+  calleePrefix?: string | string[];
 };
 
 export type TaintEndpoint = {
@@ -23,6 +25,7 @@ export type TaintFinding = {
   sinkId: string;
   file: string;
   line?: number;
+  column?: number;
   message: string;
 };
 
@@ -43,11 +46,7 @@ export function runTaintAnalysis(ast: File, filePath: string, rules: TaintRuleSe
   const matchEndpoint = (node: CallExpression, endpoints: TaintEndpoint[]) => {
     const calleeName = getCalleeName(node);
     if (!calleeName) return null;
-    return endpoints.find((endpoint) => {
-      const match = endpoint.matcher.callee;
-      if (Array.isArray(match)) return match.includes(calleeName);
-      return match === calleeName;
-    });
+    return endpoints.find((endpoint) => matchesCallee(calleeName, endpoint.matcher));
   };
 
   const isSanitizerCall = (node: CallExpression) => matchEndpoint(node, rules.sanitizers);
@@ -57,9 +56,38 @@ export function runTaintAnalysis(ast: File, filePath: string, rules: TaintRuleSe
   const valueIsTainted = (node: t.Node): boolean => {
     if (taintedExpressions.has(node)) return true;
     if (t.isIdentifier(node)) return isTainted(node.name);
+    if (t.isMemberExpression(node)) {
+      return t.isExpression(node.object) ? valueIsTainted(node.object) : false;
+    }
     if (t.isCallExpression(node)) {
       if (isSanitizerCall(node)) return false;
       if (isSourceCall(node)) return true;
+      return false;
+    }
+    if (t.isBinaryExpression(node) || t.isLogicalExpression(node)) {
+      return valueIsTainted(node.left) || valueIsTainted(node.right);
+    }
+    if (t.isConditionalExpression(node)) {
+      return valueIsTainted(node.test) || valueIsTainted(node.consequent) || valueIsTainted(node.alternate);
+    }
+    if (t.isTemplateLiteral(node)) {
+      return node.expressions.some((expr) => valueIsTainted(expr));
+    }
+    if (t.isArrayExpression(node)) {
+      return node.elements.some((el) => (t.isExpression(el) ? valueIsTainted(el) : false));
+    }
+    if (t.isObjectExpression(node)) {
+      return node.properties.some((prop) => {
+        if (t.isObjectProperty(prop) && t.isExpression(prop.value)) return valueIsTainted(prop.value);
+        if (t.isSpreadElement(prop) && t.isExpression(prop.argument)) return valueIsTainted(prop.argument);
+        return false;
+      });
+    }
+    if (t.isUnaryExpression(node)) {
+      return t.isExpression(node.argument) ? valueIsTainted(node.argument) : false;
+    }
+    if (t.isSequenceExpression(node)) {
+      return node.expressions.some((expr) => valueIsTainted(expr));
     }
     return false;
   };
@@ -123,6 +151,7 @@ export function runTaintAnalysis(ast: File, filePath: string, rules: TaintRuleSe
         sinkId: sink.id,
         file: filePath,
         line: loc?.line,
+        column: typeof loc?.column === "number" ? loc.column + 1 : undefined,
         message: `Tainted data reaches sink ${sink.name}`
       });
     }
@@ -150,6 +179,36 @@ function memberExpressionToString(node: MemberExpression): string | null {
   if (!objectName) return null;
   if (!t.isIdentifier(property)) return null;
   return `${objectName}.${property.name}`;
+}
+
+function matchesCallee(calleeName: string, matcher: CallMatcher): boolean {
+  if (matcher.callee) {
+    const match = matcher.callee;
+    if (Array.isArray(match) && match.includes(calleeName)) return true;
+    if (match === calleeName) return true;
+  }
+  if (matcher.calleePrefix) {
+    const match = matcher.calleePrefix;
+    if (Array.isArray(match) && match.some((prefix) => calleeName.startsWith(prefix))) return true;
+    if (typeof match === "string" && calleeName.startsWith(match)) return true;
+  }
+  if (matcher.calleePattern) {
+    const match = matcher.calleePattern;
+    if (Array.isArray(match) && match.some((pattern) => matchGlob(calleeName, pattern))) return true;
+    if (typeof match === "string" && matchGlob(calleeName, match)) return true;
+  }
+  return false;
+}
+
+function matchGlob(value: string, pattern: string): boolean {
+  if (pattern === value) return true;
+  try {
+    const picomatch = require("picomatch");
+    const isMatch = picomatch(pattern, { nocase: false, dot: true });
+    return isMatch(value);
+  } catch {
+    return false;
+  }
 }
 
 function normalizeTraverse(
