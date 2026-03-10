@@ -364,7 +364,9 @@ async function chooseModel(params: {
       ? await fetchOpenAiModels(apiKey)
       : provider === "openai" && source === "codex"
         ? getCodexModelChoices()
-        : getProviderModelChoices(provider);
+        : apiKey
+          ? await fetchProviderModels(provider, apiKey)
+          : getProviderModelChoices(provider);
 
   return promptForModel({
     current,
@@ -556,8 +558,8 @@ function getProviderModelChoices(provider: Provider): string[] {
   switch (provider) {
     case "anthropic":
       return [
-        "claude-opus-4-1-20250805",
-        "claude-sonnet-4-20250514"
+        "claude-opus",
+        "claude-sonnet"
       ];
     case "google":
       return [
@@ -567,8 +569,6 @@ function getProviderModelChoices(provider: Provider): string[] {
     case "mistral":
       return [
         "codestral-latest",
-        "devstral-small-latest",
-        "devstral-medium-latest",
         "mistral-medium-latest"
       ];
     case "xai":
@@ -591,4 +591,75 @@ function getProviderModelChoices(provider: Provider): string[] {
         "gpt-4o-mini"
       ];
   }
+}
+
+async function fetchProviderModels(provider: Provider, apiKey: string): Promise<string[]> {
+  switch (provider) {
+    case "anthropic":
+      return fetchAnthropicModels(apiKey);
+    case "google":
+      return fetchGeminiModels(apiKey);
+    case "mistral":
+      return fetchMistralModels(apiKey);
+    case "cohere":
+      return fetchCohereModels(apiKey);
+    case "openai":
+      return fetchOpenAiModels(apiKey);
+    case "xai":
+    default:
+      return getProviderModelChoices(provider);
+  }
+}
+
+async function fetchAnthropicModels(apiKey: string): Promise<string[]> {
+  const res = await fetch("https://api.anthropic.com/v1/models", {
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01"
+    }
+  });
+  if (!res.ok) return getProviderModelChoices("anthropic");
+  const data = (await res.json()) as { data?: Array<{ id?: string }> };
+  const ids = data.data?.map((m) => m.id).filter(Boolean) as string[] | undefined;
+  return ids?.length ? ids : getProviderModelChoices("anthropic");
+}
+
+async function fetchGeminiModels(apiKey: string): Promise<string[]> {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+  if (!res.ok) return getProviderModelChoices("google");
+  const data = (await res.json()) as {
+    models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
+  };
+  const models = (data.models ?? [])
+    .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
+    .map((m) => m.name)
+    .filter(Boolean)
+    .map((name) => name!.startsWith("models/") ? name!.slice("models/".length) : name!);
+  return models.length ? models : getProviderModelChoices("google");
+}
+
+async function fetchMistralModels(apiKey: string): Promise<string[]> {
+  const res = await fetch("https://api.mistral.ai/v1/models", {
+    headers: {
+      Authorization: `Bearer ${apiKey}`
+    }
+  });
+  if (!res.ok) return getProviderModelChoices("mistral");
+  const data = (await res.json()) as { data?: Array<{ id?: string }>; models?: Array<{ id?: string; name?: string }> };
+  const ids = data.data?.map((m) => m.id).filter(Boolean) as string[] | undefined;
+  if (ids?.length) return ids;
+  const names = data.models?.map((m) => m.id ?? m.name).filter(Boolean) as string[] | undefined;
+  return names?.length ? names : getProviderModelChoices("mistral");
+}
+
+async function fetchCohereModels(apiKey: string): Promise<string[]> {
+  const res = await fetch("https://api.cohere.com/v1/models", {
+    headers: {
+      Authorization: `Bearer ${apiKey}`
+    }
+  });
+  if (!res.ok) return getProviderModelChoices("cohere");
+  const data = (await res.json()) as { models?: Array<{ name?: string; id?: string }> };
+  const names = data.models?.map((m) => m.name ?? m.id).filter(Boolean) as string[] | undefined;
+  return names?.length ? names : getProviderModelChoices("cohere");
 }
