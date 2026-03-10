@@ -25,6 +25,7 @@ npm run build
 
 - AST taint engine with configurable sources/sinks/sanitizers.
 - OWASP-aligned default rules (injection, SSRF, path traversal, XSS templates, SQLi).
+- Pattern-based detectors (hardcoded secrets, insecure crypto, unsafe deserialization).
 - Dependency scanning for npm and PyPI (`package.json`, `package-lock.json`, `requirements.txt`).
 - Text, JSON, and SARIF output.
 - Optional AI scan (API key or OAuth flow).
@@ -51,7 +52,7 @@ Common options:
 - `--dry-run`: list matched files without scanning
 - `--fail-on <severity>`: exit 1 if findings >= severity
 - `--sarif-output <path>`: write SARIF alongside primary output
-- `--concurrency <n>`: parallel scan workers (default: 2)
+- `--concurrency <n>`: parallel scan workers
 - `--max-chars <n>`: max chars per chunk for AI scanning
 
 ### `login`
@@ -120,6 +121,8 @@ Global config: `~/.config/opensecurity/config.json`
 
 Default rules are in `src/rules/defaultRules.ts`.
 You can override with a JSON file (`--rules` or `rulesPath`).
+
+Pattern-based detectors run alongside rules (hardcoded secrets, insecure crypto, unsafe deserialization).
 
 Rule schema (simplified):
 
