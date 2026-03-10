@@ -28,7 +28,7 @@ npm run build
 - Pattern-based detectors (hardcoded secrets, insecure crypto, unsafe deserialization).
 - Dependency scanning for npm and PyPI (`package.json`, `package-lock.json`, `requirements.txt`).
 - Text, JSON, and SARIF output.
-- Optional AI scan (API key or OAuth flow).
+- Optional AI scan (API key or OAuth flow) with multiple providers.
 - Configurable include/exclude filters and scan scope.
 
 ## CLI
@@ -47,6 +47,7 @@ Common options:
 - `--cve-cache <path>`: CVE cache JSON
 - `--cve-api-url <url>`: CVE lookup API endpoint
 - `--simulate`: include payload + impact for dependency findings
+- `--provider <provider>`: `openai|anthropic|google|mistral|xai|cohere`
 - `--dependency-only`: only run dependency scan
 - `--no-ai`: disable AI scanning
 - `--dry-run`: list matched files without scanning
@@ -60,6 +61,7 @@ Common options:
 ```bash
 opensecurity login --mode oauth
 opensecurity login --mode api_key
+opensecurity login --mode api_key --provider anthropic
 ```
 
 Stores auth config in `~/.config/opensecurity/config.json`.
@@ -107,13 +109,15 @@ Global config: `~/.config/opensecurity/config.json`
 
 ```json
 {
+  "provider": "openai",
   "apiKey": "sk-...",
   "baseUrl": "https://api.openai.com/v1/responses",
   "model": "gpt-4o-mini",
   "apiType": "responses",
   "authMode": "api_key",
   "authProfileId": "codex",
-  "oauthProvider": "proxy"
+  "oauthProvider": "proxy",
+  "providerApiKey": "..."
 }
 ```
 
@@ -154,6 +158,26 @@ Rule schema (simplified):
 - Do not commit secrets.
 - AI scanning sends code chunks to the configured API endpoint.
 - Use `--no-ai` if you want purely local scanning.
+
+## Providers
+
+Supported providers for AI scanning:
+
+- OpenAI (Responses or Chat Completions)
+- Anthropic Messages API
+- Google Gemini API
+- Mistral Chat Completions API
+- xAI Chat Completions API
+- Cohere Chat API
+
+API keys can be stored via `opensecurity login --mode api_key --provider <provider>` or set via environment:
+
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `GEMINI_API_KEY`
+- `MISTRAL_API_KEY`
+- `XAI_API_KEY`
+- `COHERE_API_KEY`
 
 ## Development
 
