@@ -618,15 +618,24 @@ async function fetchAnthropicModels(apiKey: string): Promise<string[]> {
       "anthropic-version": "2023-06-01"
     }
   });
-  if (!res.ok) return getProviderModelChoices("anthropic");
+  if (!res.ok) {
+    console.error(`\x1b[33mWarning:\x1b[0m Anthropic models API failed (${res.status}). Using fallback list.`);
+    return getProviderModelChoices("anthropic");
+  }
   const data = (await res.json()) as { data?: Array<{ id?: string }> };
   const ids = data.data?.map((m) => m.id).filter(Boolean) as string[] | undefined;
+  if (!ids?.length) {
+    console.error("\x1b[33mWarning:\x1b[0m Anthropic models API returned no models. Using fallback list.");
+  }
   return ids?.length ? ids : getProviderModelChoices("anthropic");
 }
 
 async function fetchGeminiModels(apiKey: string): Promise<string[]> {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-  if (!res.ok) return getProviderModelChoices("google");
+  if (!res.ok) {
+    console.error(`\x1b[33mWarning:\x1b[0m Gemini models API failed (${res.status}). Using fallback list.`);
+    return getProviderModelChoices("google");
+  }
   const data = (await res.json()) as {
     models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
   };
@@ -635,6 +644,9 @@ async function fetchGeminiModels(apiKey: string): Promise<string[]> {
     .map((m) => m.name)
     .filter(Boolean)
     .map((name) => name!.startsWith("models/") ? name!.slice("models/".length) : name!);
+  if (!models.length) {
+    console.error("\x1b[33mWarning:\x1b[0m Gemini models API returned no models. Using fallback list.");
+  }
   return models.length ? models : getProviderModelChoices("google");
 }
 
@@ -644,11 +656,17 @@ async function fetchMistralModels(apiKey: string): Promise<string[]> {
       Authorization: `Bearer ${apiKey}`
     }
   });
-  if (!res.ok) return getProviderModelChoices("mistral");
+  if (!res.ok) {
+    console.error(`\x1b[33mWarning:\x1b[0m Mistral models API failed (${res.status}). Using fallback list.`);
+    return getProviderModelChoices("mistral");
+  }
   const data = (await res.json()) as { data?: Array<{ id?: string }>; models?: Array<{ id?: string; name?: string }> };
   const ids = data.data?.map((m) => m.id).filter(Boolean) as string[] | undefined;
   if (ids?.length) return ids;
   const names = data.models?.map((m) => m.id ?? m.name).filter(Boolean) as string[] | undefined;
+  if (!names?.length) {
+    console.error("\x1b[33mWarning:\x1b[0m Mistral models API returned no models. Using fallback list.");
+  }
   return names?.length ? names : getProviderModelChoices("mistral");
 }
 
@@ -658,8 +676,14 @@ async function fetchCohereModels(apiKey: string): Promise<string[]> {
       Authorization: `Bearer ${apiKey}`
     }
   });
-  if (!res.ok) return getProviderModelChoices("cohere");
+  if (!res.ok) {
+    console.error(`\x1b[33mWarning:\x1b[0m Cohere models API failed (${res.status}). Using fallback list.`);
+    return getProviderModelChoices("cohere");
+  }
   const data = (await res.json()) as { models?: Array<{ name?: string; id?: string }> };
   const names = data.models?.map((m) => m.name ?? m.id).filter(Boolean) as string[] | undefined;
+  if (!names?.length) {
+    console.error("\x1b[33mWarning:\x1b[0m Cohere models API returned no models. Using fallback list.");
+  }
   return names?.length ? names : getProviderModelChoices("cohere");
 }

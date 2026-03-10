@@ -100,7 +100,9 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
 
   if (!apiKey && !useCodexCli && provider !== "openai" && !options.noAi) {
     const envKey = getProviderEnvKey(provider);
-    throw new Error(`Missing API key for ${provider}. Set ${envKey} or run login with --provider ${provider}.`);
+    throw new Error(
+      `Missing API key for ${provider}. Set ${envKey} or run login with --provider ${provider} to continue.`
+    );
   }
 
   if (provider !== "openai" && authMode === "oauth") {
