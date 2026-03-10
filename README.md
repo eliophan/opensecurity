@@ -1,6 +1,6 @@
 # OpenSecurity
 
-OpenSecurity is an open-source CLI for scanning JavaScript/TypeScript codebases for security risks.
+OpenSecurity is an open-source CLI for scanning codebases for security risks, with first-class static analysis for JavaScript/TypeScript and optional AI scanning for broader files.
 It combines:
 
 - Static analysis with AST-based taint rules (OWASP-focused).
@@ -15,7 +15,7 @@ Active. This repo is maintained and intended for open-source use. Contributions 
 
 - Target languages for static analysis: JavaScript and TypeScript.
 - Dependency scanning: npm and PyPI manifests.
-- AI scanning is optional and requires an API key.
+- AI scanning is optional and requires an API key (defaults to scanning all text files).
 
 ## Non-Goals
 
@@ -47,6 +47,11 @@ npm run build
 npm link
 opensecurity scan --dry-run
 ```
+
+## Supported Platforms
+
+- Node.js 20+
+- macOS, Linux, Windows
 
 ## Features
 
@@ -232,13 +237,21 @@ When an API key is available, the model picker will try to fetch a live model li
 
 ## Contributing
 
-- Use `npm test` before submitting changes.
-- Follow existing TypeScript style and keep tests focused.
+- Run `npm test`, `npm run lint`, and `npm run build` before submitting changes.
+- Keep changes focused and add tests for new behavior.
 - Do not add or log real secrets.
+- For large changes, open an issue first to align on scope.
 
-## Roadmap
+## Security
 
-See `ROADMAP.md` for planned work.
+If you discover a vulnerability:
+
+- Prefer opening a private **Security Advisory** on GitHub (if enabled), or
+- Open a minimal public issue without sensitive details and request private follow‑up.
+
+## Support
+
+For questions or help, open a GitHub issue with clear reproduction steps.
 
 ## Development
 
