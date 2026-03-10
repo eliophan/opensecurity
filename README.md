@@ -5,6 +5,7 @@ OpenSecurity is an open-source CLI that scans repositories for security risks us
 - **Static analysis (AST + taint rules)** for JavaScript/TypeScript.
 - **Universal static patterns** for popular languages (Python, Go, Java, C#, Ruby, PHP, Rust, Kotlin, Swift, C/C++).
 - **External language adapters** (when installed): Bandit (Python), gosec (Go), Brakeman (Ruby), Semgrep (Java/C#/PHP/Rust/Kotlin/Swift/C/C++).
+- **Infra/config patterns** for Dockerfile, Kubernetes/Helm YAML, Terraform, and generic YAML misconfigurations.
 - **Pattern detectors** for common mistakes (secrets, crypto misuse, unsafe deserialization).
 - **Dependency CVE scanning** for npm/PyPI.
 - **AI scanning** across all text files by default (can be disabled with `--no-ai`).
@@ -17,6 +18,7 @@ Active. This repo is maintained and intended for open-source use. Contributions 
 
 - Native static analysis: JavaScript and TypeScript (AST + taint + patterns).
 - Adapter-based static analysis (if tools installed): Python, Go, Java, C#, PHP, Ruby, Rust, Kotlin, Swift, C/C++.
+- Infra/config static patterns: Dockerfile, Kubernetes/Helm YAML, Terraform, generic YAML.
 - Dependency scanning: npm and PyPI manifests.
 - AI scanning is optional and requires an API key (defaults to scanning all text files).
 
@@ -89,11 +91,14 @@ opensecurity scan --dry-run
    - Runs optional tool adapters when installed (Bandit, gosec, Brakeman, Semgrep).
    - Each adapter only runs if matching files exist and the tool is on PATH.
 
-6. **Dependency scan**
+6. **Infra/config patterns**
+   - Scans Dockerfile, Terraform, and Kubernetes/Helm YAML for risky defaults.
+
+7. **Dependency scan**
    - Reads `package.json`, `package-lock.json`, and `requirements.txt`.
    - Matches against CVE cache or API and adds recommendations.
 
-7. **Reporting**
+8. **Reporting**
    - Outputs text, JSON, or SARIF.
    - Optional `--fail-on`/`--fail-on-high` for CI gating.
 

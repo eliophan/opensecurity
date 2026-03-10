@@ -11,6 +11,7 @@ import { parseSource } from "./analysis/ast.js";
 import { runRuleEngine } from "./analysis/rules.js";
 import { runPatternDetectors } from "./analysis/patterns.js";
 import { runUniversalPatterns } from "./analysis/universalPatterns.js";
+import { runInfraPatterns } from "./analysis/infraPatterns.js";
 import { loadRules } from "./rules/loadRules.js";
 import { scanDependenciesWithCves } from "./deps/engine.js";
 import { runExternalAdapters } from "./adapters/runner.js";
@@ -235,6 +236,22 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
         });
       }
 
+      if (isInfraFile(file.relPath)) {
+        const infraFindings = runInfraPatterns(file.content, file.relPath);
+        for (const finding of infraFindings) {
+          findings.push({
+            id: finding.id,
+            severity: finding.severity,
+            title: finding.title,
+            description: `${finding.description} [${finding.owasp}]`,
+            file: finding.file,
+            line: finding.line,
+            owasp: finding.owasp,
+            category: "code"
+          });
+        }
+      }
+
     }
 
     const adaptersEnabled = !(options.noAdapters ?? projectConfig.noAdapters ?? false);
@@ -401,9 +418,23 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
           const nonJsFiles = aiEligibleFiles.filter((filePath) => !isAnalyzableFile(filePath));
           for (const filePath of nonJsFiles) {
             const relPath = path.relative(cwd, filePath);
-            const content = await fs.readFile(filePath, "utf8");
-            const universalFindings = runUniversalPatterns(content, relPath);
-            for (const finding of universalFindings) {
+          const content = await fs.readFile(filePath, "utf8");
+          const universalFindings = runUniversalPatterns(content, relPath);
+          for (const finding of universalFindings) {
+              findings.push({
+                id: finding.id,
+                severity: finding.severity,
+                title: finding.title,
+                description: `${finding.description} [${finding.owasp}]`,
+                file: finding.file,
+                line: finding.line,
+                owasp: finding.owasp,
+              category: "code"
+            });
+          }
+          if (isInfraFile(relPath)) {
+            const infraFindings = runInfraPatterns(content, relPath);
+            for (const finding of infraFindings) {
               findings.push({
                 id: finding.id,
                 severity: finding.severity,
@@ -415,9 +446,10 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
                 category: "code"
               });
             }
-            const chunks = chunkText(content, maxChars);
-            for (let i = 0; i < chunks.length; i += 1) {
-              const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
+          }
+          const chunks = chunkText(content, maxChars);
+          for (let i = 0; i < chunks.length; i += 1) {
+            const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
               const fileIndex = totalCodeFiles + 1;
               const chunkIndex = i + 1;
               const totalChunks = chunks.length;
@@ -1219,6 +1251,16 @@ function isLikelyTextFile(filePath: string): boolean {
     ".bin", ".exe", ".dmg", ".iso"
   ]);
   return !blocked.has(ext);
+}
+
+function isInfraFile(filePath: string): boolean {
+  const normalized = filePath.split(path.sep).join("/");
+  const base = path.basename(normalized).toLowerCase();
+  if (base === "dockerfile" || base.endsWith(".dockerfile")) return true;
+  if (base.endsWith(".tf") || base.endsWith(".tfvars")) return true;
+  if (base.endsWith(".yaml") || base.endsWith(".yml")) return true;
+  if (normalized.includes("/k8s/") || normalized.includes("/kubernetes/") || normalized.includes("/helm/")) return true;
+  return false;
 }
 
 type FileBatch = { key: string; files: string[] };
