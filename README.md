@@ -131,6 +131,21 @@ npm run build-grammars
 
 If WASM grammars are missing, OpenSecurity will try native Tree‑sitter bindings (if installed) and otherwise skip native taint for that language with a warning.
 
+## Native AST/Taint Matrix
+
+| Language | AST/Taint (Tree‑sitter) | Rules |
+| --- | --- | --- |
+| Python | ✅ | SQLi, Command Injection, Path Traversal, SSRF, Deserialization, Template XSS, Weak Crypto, Hardcoded Secret |
+| Go | ✅ | SQLi, Command Injection, Path Traversal, SSRF, Template XSS, Weak Crypto, Hardcoded Secret |
+| Java | ✅ | SQLi, Command Injection, Path Traversal, SSRF, Deserialization, Template XSS, Weak Crypto, Hardcoded Secret |
+| C# | ✅ | SQLi, Command Injection, Path Traversal, SSRF, Deserialization, Template XSS, Weak Crypto, Hardcoded Secret |
+| Ruby | ✅ | SQLi, Command Injection, Path Traversal, SSRF, Deserialization, Template XSS, Weak Crypto, Hardcoded Secret |
+| PHP | ✅ | SQLi, Command Injection, Path Traversal, SSRF, Deserialization, Template XSS, Weak Crypto, Hardcoded Secret |
+| Rust | ✅ | SQLi, Command Injection, Path Traversal, SSRF, Template XSS, Weak Crypto, Hardcoded Secret |
+| Kotlin | ✅ | SQLi, Command Injection, Path Traversal, SSRF, Template XSS, Weak Crypto, Hardcoded Secret |
+| Swift | ✅ | SQLi, Command Injection, Path Traversal, SSRF, Template XSS, Weak Crypto, Hardcoded Secret |
+| C/C++ | ✅ | Command Injection, Path Traversal, Weak Crypto, Hardcoded Secret |
+
 ## Infra/Config Coverage
 
 Built-in infra checks include:
