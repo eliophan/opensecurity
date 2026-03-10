@@ -7,7 +7,8 @@ export default [
       "dist/**",
       "build/**",
       "coverage/**",
-      ".opensecurity/**"
+      ".opensecurity/**",
+      "emsdk/**"
     ]
   },
   {
