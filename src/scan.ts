@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import traverseImport from "@babel/traverse";
-import { loadGlobalConfig, loadProjectConfig, resolveProjectFilters } from "./config.js";
+import { loadGlobalConfig, loadProjectConfig, resolveProjectFilters, type Provider } from "./config.js";
 import { getOAuthProfile, isTokenExpired, saveOAuthProfile, type OAuthProfile } from "./oauthStore.js";
 import { walkFiles } from "./fileWalker.js";
 import { parseSource } from "./analysis/ast.js";
@@ -42,6 +42,7 @@ export type ScanOptions = {
   maxChars?: number;
   model?: string;
   authMode?: "oauth" | "api_key";
+  provider?: Provider;
   liveOutput?: boolean;
   onProgress?: (info: {
     file: string;
@@ -78,6 +79,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const { filters, globalConfig, projectConfig } = await resolveScanContext(options, cwd);
   const rules = await loadRules(options.rulesPath ?? projectConfig.rulesPath, cwd);
 
+  const provider = options.provider ?? globalConfig.provider ?? "openai";
   const baseUrl = globalConfig.baseUrl ?? "https://api.openai.com/v1/responses";
   const authMode = globalConfig.authMode;
   const oauthProvider = globalConfig.oauthProvider ?? "proxy";
@@ -92,11 +94,20 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   if (options.dryRun) {
     return { findings: [] };
   }
-  const useCodexCli = authMode === "oauth" && oauthProvider === "codex-cli";
-  const apiKey = useCodexCli ? undefined : await resolveAuthToken(globalConfig);
+  const useCodexCli = provider === "openai" && authMode === "oauth" && oauthProvider === "codex-cli";
+  const apiKey = useCodexCli ? undefined : await resolveProviderAuthToken(globalConfig, provider);
   const findings: Finding[] = [];
 
-  if (authMode === "oauth" && oauthProvider !== "codex-cli" && baseUrl.includes("api.openai.com")) {
+  if (!apiKey && !useCodexCli && provider !== "openai" && !options.noAi) {
+    const envKey = getProviderEnvKey(provider);
+    throw new Error(`Missing API key for ${provider}. Set ${envKey} or run login with --provider ${provider}.`);
+  }
+
+  if (provider !== "openai" && authMode === "oauth") {
+    throw new Error("OAuth mode is only supported for OpenAI. Use api_key for other providers.");
+  }
+
+  if (provider === "openai" && authMode === "oauth" && oauthProvider !== "codex-cli" && baseUrl.includes("api.openai.com")) {
     throw new Error("OAuth mode requires a backend/proxy. Set OPENSECURITY_PROXY_URL or configure baseUrl to your backend.");
   }
 
@@ -188,8 +199,9 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
               : await (async () => {
                   const responseText = await callModelWithRetry(
                     {
+                      provider,
                       apiKey: apiKey!,
-                      baseUrl,
+                      baseUrl: provider === "openai" ? baseUrl : globalConfig.providerBaseUrl,
                       apiType,
                       model,
                       prompt
@@ -379,9 +391,10 @@ function buildPrompt(filePath: string, chunk: string, index: number, total: numb
 }
 
 type CallModelParams = {
+  provider: Provider;
   apiKey: string;
-  baseUrl: string;
-  apiType: "responses" | "chat";
+  baseUrl?: string;
+  apiType?: "responses" | "chat";
   model: string;
   prompt: string;
 };
@@ -391,11 +404,17 @@ type CodexCliParams = {
   onOutputChunk?: (chunk: string) => void;
 };
 
-async function resolveAuthToken(globalConfig: {
+async function resolveProviderAuthToken(globalConfig: {
   apiKey?: string;
   authMode?: "oauth" | "api_key";
   authProfileId?: string;
-}): Promise<string | undefined> {
+  provider?: Provider;
+  providerApiKey?: string;
+}, provider: Provider): Promise<string | undefined> {
+  if (provider !== "openai") {
+    return resolveNonOpenAiApiKey(globalConfig, provider);
+  }
+
   if (globalConfig.authMode !== "oauth") {
     return globalConfig.apiKey?.trim();
   }
@@ -417,6 +436,36 @@ async function resolveAuthToken(globalConfig: {
   const refreshed = await refreshAccessToken(profile);
   await saveOAuthProfile(refreshed);
   return refreshed.accessToken;
+}
+
+function resolveNonOpenAiApiKey(
+  globalConfig: { providerApiKey?: string; apiKey?: string },
+  provider: Provider
+): string | undefined {
+  const envKey = getProviderEnvKey(provider);
+  return (
+    globalConfig.providerApiKey?.trim() ||
+    process.env[envKey]?.trim() ||
+    globalConfig.apiKey?.trim()
+  );
+}
+
+function getProviderEnvKey(provider: Provider): string {
+  switch (provider) {
+    case "anthropic":
+      return "ANTHROPIC_API_KEY";
+    case "google":
+      return "GEMINI_API_KEY";
+    case "mistral":
+      return "MISTRAL_API_KEY";
+    case "xai":
+      return "XAI_API_KEY";
+    case "cohere":
+      return "COHERE_API_KEY";
+    case "openai":
+    default:
+      return "OPENAI_API_KEY";
+  }
 }
 
 async function callCodexCli(params: CodexCliParams): Promise<string> {
@@ -521,7 +570,30 @@ async function refreshAccessToken(profile: OAuthProfile): Promise<OAuthProfile> 
 }
 
 async function callModel(params: CallModelParams): Promise<string> {
+  const { provider } = params;
+  switch (provider) {
+    case "openai":
+      return callOpenAiModel(params);
+    case "anthropic":
+      return callAnthropicModel(params);
+    case "google":
+      return callGeminiModel(params);
+    case "mistral":
+      return callMistralModel(params);
+    case "xai":
+      return callXaiModel(params);
+    case "cohere":
+      return callCohereModel(params);
+    default:
+      throw new Error(`Unsupported provider: ${provider}`);
+  }
+}
+
+async function callOpenAiModel(params: CallModelParams): Promise<string> {
   const { apiKey, baseUrl, apiType, model, prompt } = params;
+  if (!baseUrl || !apiType) {
+    throw new Error("OpenAI baseUrl and apiType are required.");
+  }
   const headers = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${apiKey}`
@@ -556,6 +628,125 @@ async function callModel(params: CallModelParams): Promise<string> {
   }
   const data = await res.json();
   return data?.output_text ?? extractResponsesText(data);
+}
+
+async function callAnthropicModel(params: CallModelParams): Promise<string> {
+  const { apiKey, baseUrl, model, prompt } = params;
+  const url = baseUrl ?? "https://api.anthropic.com/v1/messages";
+  const body = JSON.stringify({
+    model,
+    max_tokens: 1024,
+    messages: [{ role: "user", content: prompt }]
+  });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01"
+    },
+    body
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Anthropic request failed: ${res.status} ${text}`);
+  }
+  const data = await res.json();
+  return data?.content?.[0]?.text ?? "";
+}
+
+async function callGeminiModel(params: CallModelParams): Promise<string> {
+  const { apiKey, baseUrl, model, prompt } = params;
+  const base = baseUrl ?? "https://generativelanguage.googleapis.com/v1beta";
+  const modelPath = model.startsWith("models/") ? model : `models/${model}`;
+  const url = `${base}/${modelPath}:generateContent?key=${apiKey}`;
+  const body = JSON.stringify({
+    contents: [{ role: "user", parts: [{ text: prompt }] }]
+  });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Gemini request failed: ${res.status} ${text}`);
+  }
+  const data = await res.json();
+  const parts = data?.candidates?.[0]?.content?.parts ?? [];
+  return parts.map((p: any) => p?.text ?? "").join("");
+}
+
+async function callMistralModel(params: CallModelParams): Promise<string> {
+  const { apiKey, baseUrl, model, prompt } = params;
+  const url = baseUrl ?? "https://api.mistral.ai/v1/chat/completions";
+  const body = JSON.stringify({
+    model,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0
+  });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
+    },
+    body
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Mistral request failed: ${res.status} ${text}`);
+  }
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content ?? "";
+}
+
+async function callXaiModel(params: CallModelParams): Promise<string> {
+  const { apiKey, baseUrl, model, prompt } = params;
+  const url = baseUrl ?? "https://api.x.ai/v1/chat/completions";
+  const body = JSON.stringify({
+    model,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0
+  });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
+    },
+    body
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`xAI request failed: ${res.status} ${text}`);
+  }
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content ?? "";
+}
+
+async function callCohereModel(params: CallModelParams): Promise<string> {
+  const { apiKey, baseUrl, model, prompt } = params;
+  const url = baseUrl ?? "https://api.cohere.com/v2/chat";
+  const body = JSON.stringify({
+    model,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0
+  });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
+    },
+    body
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Cohere request failed: ${res.status} ${text}`);
+  }
+  const data = await res.json();
+  return data?.message?.content?.[0]?.text ?? "";
 }
 
 async function callModelWithRetry(
