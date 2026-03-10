@@ -242,6 +242,8 @@ When an API key is available, the model picker will try to fetch a live model li
 - Do not add or log real secrets.
 - For large changes, open an issue first to align on scope.
 
+See `CONTRIBUTING.md` for full guidelines.
+
 ## Security
 
 If you discover a vulnerability:
