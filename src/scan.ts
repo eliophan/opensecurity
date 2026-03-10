@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import traverseImport from "@babel/traverse";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { loadGlobalConfig, loadProjectConfig, resolveProjectFilters, type Provider } from "./config.js";
 import { getOAuthProfile, isTokenExpired, saveOAuthProfile, type OAuthProfile } from "./oauthStore.js";
 import { walkFiles } from "./fileWalker.js";
@@ -62,6 +64,8 @@ export type ScanOptions = {
   dependencyOnly?: boolean;
   noAi?: boolean;
   aiAllText?: boolean;
+  diffOnly?: boolean;
+  diffBase?: string;
   dryRun?: boolean;
   concurrency?: number;
   maxRetries?: number;
@@ -91,7 +95,12 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const maxRetries = Math.max(0, options.maxRetries ?? DEFAULT_MAX_RETRIES);
   const retryDelayMs = Math.max(0, options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS);
 
-  const files = await walkFiles(cwd, filters);
+  let files = await walkFiles(cwd, filters);
+  if (options.diffOnly) {
+    const changed = await getChangedFiles(cwd, options.diffBase ?? "HEAD");
+    const changedSet = new Set(changed.map((p) => path.resolve(cwd, p)));
+    files = files.filter((filePath) => changedSet.has(path.resolve(filePath)));
+  }
   if (options.dryRun) {
     return { findings: [] };
   }
@@ -994,6 +1003,29 @@ function isLikelyTextFile(filePath: string): boolean {
     ".bin", ".exe", ".dmg", ".iso"
   ]);
   return !blocked.has(ext);
+}
+
+const execFileAsync = promisify(execFile);
+
+async function getChangedFiles(cwd: string, baseRef: string): Promise<string[]> {
+  try {
+    const [diff, diffCached, diffBase, untracked] = await Promise.all([
+      execFileAsync("git", ["-C", cwd, "diff", "--name-only", "--diff-filter=ACMR"], { encoding: "utf8" }),
+      execFileAsync("git", ["-C", cwd, "diff", "--name-only", "--diff-filter=ACMR", "--cached"], { encoding: "utf8" }),
+      execFileAsync("git", ["-C", cwd, "diff", "--name-only", "--diff-filter=ACMR", baseRef], { encoding: "utf8" }),
+      execFileAsync("git", ["-C", cwd, "ls-files", "--others", "--exclude-standard"], { encoding: "utf8" })
+    ]);
+
+    const entries = [diff.stdout, diffCached.stdout, diffBase.stdout, untracked.stdout]
+      .join("\n")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    return Array.from(new Set(entries));
+  } catch (err: any) {
+    throw new Error("diff-only requires a git repository with a valid base ref.");
+  }
 }
 
 function dedupeFindings(findings: Finding[]): Finding[] {

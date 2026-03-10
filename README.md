@@ -77,6 +77,8 @@ Common options:
 - `--provider <provider>`: `openai|anthropic|google|mistral|xai|cohere`
 - `--ai-all-text`: allow AI scan on all text files (non-JS/TS) (default)
 - `--ai-js-only`: limit AI scan to JS/TS only
+- `--diff-only`: scan only files changed in git
+- `--diff-base <ref>`: git base ref for diff-only (default: HEAD)
 - `--dependency-only`: only run dependency scan
 - `--no-ai`: disable AI scanning
 - `--dry-run`: list matched files without scanning

@@ -75,6 +75,8 @@ program
   .option("--concurrency <n>", "parallel scan workers", (v) => Number(v))
   .option("--dependency-only", "only run dependency/CVE scanning")
   .option("--no-ai", "skip AI model scanning")
+  .option("--diff-only", "only scan files changed in git")
+  .option("--diff-base <ref>", "git base ref for diff-only (default: HEAD)")
   .option("--dry-run", "list matched files without calling the model")
   .option("--fail-on <severity>", "fail if findings are >= severity (low|medium|high|critical)")
   .option("--sarif-output <path>", "write SARIF to file in addition to primary output")
@@ -155,6 +157,8 @@ async function executeScan(opts: any) {
       dependencyOnly: opts.dependencyOnly,
       noAi: opts.noAi,
       aiAllText: opts.aiJsOnly ? false : (opts.aiAllText ?? true),
+      diffOnly: opts.diffOnly,
+      diffBase: opts.diffBase,
       concurrency: opts.concurrency
     });
 
