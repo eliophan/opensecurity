@@ -51,16 +51,7 @@ npm run build
 
 ## Install
 
-From source:
-
-```bash
-npm install
-npm run build
-npm link
-opensecurity scan --dry-run
-```
-
-From npm:
+Install from npm (required for normal use):
 
 ```bash
 npm i opensecurity
@@ -68,6 +59,15 @@ opensecurity scan --dry-run
 ```
 
 Package: `https://www.npmjs.com/package/opensecurity`
+
+From source (dev only):
+
+```bash
+npm install
+npm run build
+npm link
+opensecurity scan --dry-run
+```
 
 ## Supported Platforms
 
