@@ -22,7 +22,7 @@ Active. This repo is maintained and intended for open-source use. Contributions 
 - Adapter-based static analysis (if tools installed): Python, Go, Java, C#, PHP, Ruby, Rust, Kotlin, Swift, C/C++.
 - Infra/config static patterns: Dockerfile, Kubernetes/Helm YAML, Terraform, generic YAML.
 - Dependency scanning: npm and PyPI manifests.
-- AI scanning is optional and requires an API key (defaults to scanning all text files).
+- AI scanning is optional and requires an API key (defaults to scanning all text files when enabled). If no API key is configured, AI scanning is skipped.
 
 ## Non-Goals
 
@@ -30,6 +30,7 @@ Active. This repo is maintained and intended for open-source use. Contributions 
 - It does not execute or sandbox code.
 - It does not guarantee complete coverage of all vulnerabilities.
 - It does not replace specialized commercial scanners (e.g., Codex Security, Claude Security).
+- For compliance-grade coverage, use dedicated SAST/compliance tooling.
 
 ## Quick Start
 
@@ -130,7 +131,7 @@ Build them locally:
 npm run build-grammars
 ```
 
-If WASM grammars are missing, OpenSecurity will try native Tree‑sitter bindings (if installed) and otherwise skip native taint for that language with a warning.
+This repo ships prebuilt WASM grammars for the 10 native languages. If they are missing, OpenSecurity will try native Tree‑sitter bindings (if installed) and otherwise skip native taint for that language with a warning.
 
 ## Native AST/Taint Matrix
 
@@ -146,6 +147,8 @@ If WASM grammars are missing, OpenSecurity will try native Tree‑sitter binding
 | Kotlin | ✅ | SQLi, Command Injection, Path Traversal, SSRF, Template XSS, Weak Crypto, Hardcoded Secret |
 | Swift | ✅ | SQLi, Command Injection, Path Traversal, SSRF, Template XSS, Weak Crypto, Hardcoded Secret |
 | C/C++ | ✅ | Command Injection, Path Traversal, Weak Crypto, Hardcoded Secret |
+
+Rule coverage is heuristic and may miss context; validate findings in your environment.
 
 ## Infra/Config Coverage
 
@@ -318,7 +321,10 @@ Rule schema (simplified):
 
 ## Language Support
 
-- Static analysis: JavaScript and TypeScript
+- JS/TS: native AST + taint + patterns
+- Multi‑lang: Tree‑sitter native taint for Python, Go, Java, C#, Ruby, PHP, Rust, Kotlin, Swift, C/C++
+- External adapters (optional): Bandit, gosec, Brakeman, Semgrep
+- Infra/config: Dockerfile, Kubernetes/Helm YAML, Terraform, generic YAML
 - Dependency scanning: npm and PyPI manifests
 
 ## Security Notes
