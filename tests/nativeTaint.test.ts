@@ -31,15 +31,15 @@ function node(
 
 describe("native taint engine", () => {
   it("propagates taint from source to sink", () => {
-    const source = "input();\nexec(cmd);";
-    const identifier = node("identifier", 0, 5);
-    const sourceCall = node("call", 0, 7, { function: identifier, arguments: node("arguments", 6, 7, {}, []) });
-    const assignLeft = node("identifier", 9, 12);
-    const assign = node("assignment", 9, 15, { left: assignLeft, right: sourceCall });
-    const sinkName = node("identifier", 16, 20);
-    const sinkArg = node("identifier", 21, 24);
-    const sinkCall = node("call", 16, 25, { function: sinkName, arguments: node("arguments", 20, 25, {}, [sinkArg]) }, [sinkArg]);
-    const root = node("root", 0, 25, {}, [assign, sinkCall]);
+    const source = "cmd = input();\nexec(cmd);";
+    const inputIdent = node("identifier", 6, 11);
+    const sourceCall = node("call", 6, 13, { function: inputIdent, arguments: node("arguments", 11, 13, {}, []) });
+    const assignLeft = node("identifier", 0, 3);
+    const assign = node("assignment", 0, 13, { left: assignLeft, right: sourceCall });
+    const sinkName = node("identifier", 15, 19);
+    const sinkArg = node("identifier", 20, 23);
+    const sinkCall = node("call", 15, 24, { function: sinkName, arguments: node("arguments", 19, 24, {}, [sinkArg]) }, [sinkArg]);
+    const root = node("root", 0, 24, {}, [assign, sinkCall]);
 
     const lang: LanguageConfig = {
       id: "python",
