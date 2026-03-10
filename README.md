@@ -80,6 +80,13 @@ opensecurity telemetry off
 
 ## Configuration
 
+### Precedence
+
+1. CLI flags
+2. Project config (`.opensecurity.json`)
+3. Global config (`~/.config/opensecurity/config.json`)
+4. Built-in defaults
+
 Project config: `.opensecurity.json`
 
 ```json

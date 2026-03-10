@@ -50,7 +50,12 @@ program
   .option("--format <format>", "text|json|sarif", "text")
   .option("--max-chars <maxChars>", "max chars per chunk", (v) => Number(v), 4000)
   .option("--model <model>", "override model")
-  .option("--auth <mode>", "oauth|api_key (overrides config)")
+  .option("--auth <mode>", "oauth|api_key (overrides config)", (value) => {
+    if (value !== "oauth" && value !== "api_key") {
+      throw new Error("--auth must be 'oauth' or 'api_key'");
+    }
+    return value;
+  })
   .option("--cwd <cwd>", "override working directory")
   .option("--include <pattern...>", "include glob patterns (overrides project config)")
   .option("--exclude <pattern...>", "exclude glob patterns (overrides project config)")
@@ -63,7 +68,7 @@ program
     "low|medium|high (affects risk scoring)",
     "medium"
   )
-  .option("--concurrency <n>", "parallel scan workers", (v) => Number(v), 2)
+  .option("--concurrency <n>", "parallel scan workers", (v) => Number(v))
   .option("--dependency-only", "only run dependency/CVE scanning")
   .option("--no-ai", "skip AI model scanning")
   .option("--dry-run", "list matched files without calling the model")
