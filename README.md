@@ -1,6 +1,6 @@
 # OpenSecurity
 
-OpenSecurity is an open-source CLI for scanning codebases for security risks, with first-class static analysis for JavaScript/TypeScript and optional AI scanning for broader files.
+OpenSecurity is an open-source CLI for scanning codebases for security risks, with first-class static analysis for JavaScript/TypeScript and AI scanning across all text files by default.
 It combines:
 
 - Static analysis with AST-based taint rules (OWASP-focused).
@@ -107,6 +107,9 @@ opensecurity scan --no-ai
 opensecurity scan --format sarif --sarif-output reports/opensecurity.sarif
 opensecurity scan --provider anthropic --model claude-sonnet-4-20250514
 opensecurity scan --dependency-only --simulate
+opensecurity scan --ai-multi-agent --ai-batch-size 25 --ai-batch-depth 2
+opensecurity scan --diff-only --diff-base main
+opensecurity scan --path src/
 ```
 
 ### `login`
@@ -154,7 +157,9 @@ Project config: `.opensecurity.json`
   "cveApiUrl": "https://example.com/osv",
   "dataSensitivity": "medium",
   "maxChars": 4000,
-  "concurrency": 2
+  "concurrency": 2,
+  "aiCache": true,
+  "aiCachePath": ".opensecurity/ai-cache.json"
 }
 ```
 
