@@ -43,7 +43,6 @@ Install from npm (required for normal use):
 
 ```bash
 npm i opensecurity
-opensecurity scan --dry-run
 ```
 
 Package: `https://www.npmjs.com/package/opensecurity`
@@ -77,7 +76,7 @@ If you only want local scanning, you can skip login and run `opensecurity scan -
 
 ## Supported Platforms
 
-- Node.js 20+
+- Node.js 20+ is required.
 - macOS, Linux, Windows
 
 ## Features
