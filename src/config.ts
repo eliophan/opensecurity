@@ -30,6 +30,10 @@ export type ProjectConfig = {
   aiCachePath?: string;
   adapters?: string[];
   noAdapters?: boolean;
+  nativeTaint?: boolean;
+  nativeTaintLanguages?: string[];
+  nativeTaintCache?: boolean;
+  nativeTaintCachePath?: string;
 };
 
 export const DEFAULT_INCLUDE = ["**/*"];
@@ -41,7 +45,8 @@ export const DEFAULT_EXCLUDE = [
   "**/coverage/**",
   "**/.opensecurity.json",
   "**/.opensecurity-cache.json",
-  "**/.opensecurity/ai-cache.json"
+  "**/.opensecurity/ai-cache.json",
+  "**/.opensecurity/native-taint-cache.json"
 ];
 
 const DEFAULT_GLOBALS: Required<Pick<GlobalConfig, "baseUrl" | "model" | "apiType" | "provider">> = {

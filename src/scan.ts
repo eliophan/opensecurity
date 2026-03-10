@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import traverseImport from "@babel/traverse";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -15,6 +16,10 @@ import { runInfraPatterns } from "./analysis/infraPatterns.js";
 import { loadRules } from "./rules/loadRules.js";
 import { scanDependenciesWithCves } from "./deps/engine.js";
 import { runExternalAdapters } from "./adapters/runner.js";
+import { getLanguageByExtension, getNativeLanguages, type NativeLanguageId } from "./native/languages.js";
+import { parseWithTreeSitter } from "./native/loader.js";
+import { loadNativeRules } from "./native/rules.js";
+import { runNativeTaint } from "./native/taint.js";
 
 export type Severity = "low" | "medium" | "high" | "critical";
 
@@ -76,6 +81,10 @@ export type ScanOptions = {
   aiCachePath?: string;
   adapters?: string[];
   noAdapters?: boolean;
+  nativeTaint?: boolean;
+  nativeTaintLanguages?: string[];
+  nativeTaintCache?: boolean;
+  nativeTaintCachePath?: string;
   diffOnly?: boolean;
   diffBase?: string;
   dryRun?: boolean;
@@ -92,6 +101,7 @@ const MAX_ESTIMATED_TOKENS = 50000; // Guardrail: reject massive scans
 const CHARS_PER_TOKEN = 4; // Simple heuristic for estimation
 
 export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
+  const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const resolvedRoot = options.targetPath
     ? path.resolve(options.cwd ?? process.cwd(), options.targetPath)
     : (options.cwd ?? process.cwd());
@@ -112,6 +122,13 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   const concurrency = Math.max(1, options.concurrency ?? projectConfig.concurrency ?? DEFAULT_CONCURRENCY);
   const maxRetries = Math.max(0, options.maxRetries ?? DEFAULT_MAX_RETRIES);
   const retryDelayMs = Math.max(0, options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS);
+  const nativeTaintEnabled = options.nativeTaint ?? projectConfig.nativeTaint ?? true;
+  const nativeLangs = resolveNativeLanguages(options.nativeTaintLanguages ?? projectConfig.nativeTaintLanguages);
+  const nativeCacheEnabled = options.nativeTaintCache ?? projectConfig.nativeTaintCache ?? true;
+  const nativeCachePath = resolveNativeCachePath(cwd, options.nativeTaintCachePath ?? projectConfig.nativeTaintCachePath);
+  const nativeCache = nativeCacheEnabled
+    ? await loadNativeCache(nativeCachePath)
+    : { entries: new Map<string, CachedNativeEntry>() };
 
   let files = await walkFiles(cwd, filters);
   if (options.diffOnly) {
@@ -268,6 +285,70 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
         }
       }
       findings.push(...adapterFindings);
+    }
+
+    if (nativeTaintEnabled) {
+      const nativeWarnings = new Set<string>();
+      const ruleCache = new Map<NativeLanguageId, Awaited<ReturnType<typeof loadNativeRules>>>();
+      const langConfigs = getNativeLanguages();
+      const langById = new Map(langConfigs.map((lang) => [lang.id, lang]));
+      const nativeFiles = files.filter((filePath) => {
+        const lang = getLanguageByExtension(filePath);
+        return Boolean(lang && nativeLangs.has(lang.id) && isLikelyTextFile(filePath));
+      });
+
+      for (const filePath of nativeFiles) {
+        const lang = getLanguageByExtension(filePath);
+        if (!lang || !nativeLangs.has(lang.id)) continue;
+        const relPath = path.relative(cwd, filePath);
+        const content = await fs.readFile(filePath, "utf8");
+        const cacheKey = computeNativeCacheKey(lang.id, content);
+        const cached = nativeCache.entries.get(relPath);
+        if (cached && cached.hash === cacheKey) {
+          const cachedFindings = cached.findings.map((f) => ({ ...f }));
+          for (const finding of cachedFindings) findings.push(finding);
+          continue;
+        }
+
+        const parsed = await parseWithTreeSitter(content, lang, packageRoot);
+        if (!parsed) {
+          nativeWarnings.add(`Native taint skipped: missing parser for ${lang.name}. Run npm run build-grammars or install tree-sitter language bindings.`);
+          continue;
+        }
+
+        let rules = ruleCache.get(lang.id);
+        if (!rules) {
+          rules = await loadNativeRules(packageRoot, lang.id);
+          ruleCache.set(lang.id, rules);
+        }
+        if (!rules) {
+          nativeWarnings.add(`Native taint skipped: no rules for ${lang.name}.`);
+          continue;
+        }
+
+        const nativeFindings = runNativeTaint(parsed.tree, content, lang, rules, relPath);
+        const mapped: Finding[] = nativeFindings.map((finding) => ({
+          id: finding.ruleId,
+          severity: finding.severity,
+          title: finding.ruleTitle,
+          description: `${finding.message} [${finding.owasp}]`,
+          file: finding.file,
+          line: finding.line,
+          column: finding.column,
+          owasp: finding.owasp,
+          category: "code"
+        }));
+        for (const finding of mapped) findings.push(finding);
+        if (nativeCacheEnabled) {
+          nativeCache.entries.set(relPath, { hash: cacheKey, findings: mapped });
+        }
+      }
+
+      if (nativeWarnings.size && options.format !== "json" && options.format !== "sarif") {
+        for (const warning of nativeWarnings) {
+          console.warn(warning);
+        }
+      }
     }
 
     if ((apiKey || useCodexCli) && !options.noAi) {
@@ -555,6 +636,10 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
       }
     }
     await saveAiCache(cachePath, aiCache);
+  }
+
+  if (nativeCacheEnabled) {
+    await saveNativeCache(nativeCachePath, nativeCache);
   }
 
   return { findings: dedupeFindings(findings) };
@@ -1301,12 +1386,20 @@ export function createBatches(groups: Map<string, string[]>, batchSize: number):
 }
 
 type CachedAiEntry = { hash: string; findings: Finding[] };
+type CachedNativeEntry = { hash: string; findings: Finding[] };
 
 function resolveCachePath(cwd: string, override?: string): string {
   if (override && override.trim()) {
     return path.isAbsolute(override) ? override : path.join(cwd, override);
   }
   return path.join(cwd, ".opensecurity", "ai-cache.json");
+}
+
+function resolveNativeCachePath(cwd: string, override?: string): string {
+  if (override && override.trim()) {
+    return path.isAbsolute(override) ? override : path.join(cwd, override);
+  }
+  return path.join(cwd, ".opensecurity", "native-taint-cache.json");
 }
 
 async function loadAiCache(cachePath: string): Promise<{ entries: Map<string, CachedAiEntry> }> {
@@ -1330,6 +1423,27 @@ async function saveAiCache(cachePath: string, cache: { entries: Map<string, Cach
   await fs.writeFile(cachePath, JSON.stringify(obj, null, 2), "utf8");
 }
 
+async function loadNativeCache(cachePath: string): Promise<{ entries: Map<string, CachedNativeEntry> }> {
+  try {
+    const raw = await fs.readFile(cachePath, "utf8");
+    const parsed = JSON.parse(raw) as Record<string, CachedNativeEntry>;
+    const entries = new Map<string, CachedNativeEntry>(Object.entries(parsed ?? {}));
+    return { entries };
+  } catch (err: any) {
+    if (err?.code === "ENOENT") return { entries: new Map() };
+    return { entries: new Map() };
+  }
+}
+
+async function saveNativeCache(cachePath: string, cache: { entries: Map<string, CachedNativeEntry> }): Promise<void> {
+  const obj: Record<string, CachedNativeEntry> = {};
+  for (const [key, value] of cache.entries.entries()) {
+    obj[key] = value;
+  }
+  await fs.mkdir(path.dirname(cachePath), { recursive: true });
+  await fs.writeFile(cachePath, JSON.stringify(obj, null, 2), "utf8");
+}
+
 function computeCacheKey(provider: Provider, model: string, content: string): string {
   return crypto
     .createHash("sha256")
@@ -1339,6 +1453,22 @@ function computeCacheKey(provider: Provider, model: string, content: string): st
     .update("|")
     .update(content)
     .digest("hex");
+}
+
+function computeNativeCacheKey(language: string, content: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(language)
+    .update("|")
+    .update(content)
+    .digest("hex");
+}
+
+function resolveNativeLanguages(list?: string[]): Set<NativeLanguageId> {
+  const all = getNativeLanguages().map((lang) => lang.id);
+  if (!list || list.length === 0) return new Set(all);
+  const normalized = new Set(list.map((item) => item.trim().toLowerCase()).filter(Boolean));
+  return new Set(all.filter((lang) => normalized.has(lang)));
 }
 
 async function safeStat(target: string): Promise<import("node:fs").Stats | null> {

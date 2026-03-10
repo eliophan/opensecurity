@@ -79,6 +79,14 @@ program
   .option("--ai-cache", "enable AI per-file cache")
   .option("--no-ai-cache", "disable AI per-file cache")
   .option("--ai-cache-path <path>", "path to AI cache file")
+  .option("--native-taint", "enable native multi-language taint engine")
+  .option("--no-native-taint", "disable native multi-language taint engine")
+  .option("--native-langs <list>", "comma-separated native taint languages", (value) =>
+    value.split(",").map((item) => item.trim()).filter(Boolean)
+  )
+  .option("--native-cache", "enable native taint cache")
+  .option("--no-native-cache", "disable native taint cache")
+  .option("--native-cache-path <path>", "path to native taint cache file")
   .option("--adapters <list>", "comma-separated external adapters (bandit,gosec,brakeman,semgrep)", (value) =>
     value.split(",").map((item) => item.trim()).filter(Boolean)
   )
@@ -175,6 +183,10 @@ async function executeScan(opts: any) {
       aiBatchDepth: opts.aiBatchDepth,
       aiCache: opts.aiCache,
       aiCachePath: opts.aiCachePath,
+      nativeTaint: opts.nativeTaint,
+      nativeTaintLanguages: opts.nativeLangs,
+      nativeTaintCache: opts.nativeCache,
+      nativeTaintCachePath: opts.nativeCachePath,
       adapters: opts.adapters,
       noAdapters: opts.disableAdapters,
       diffOnly: opts.diffOnly,
