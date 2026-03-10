@@ -14,11 +14,6 @@ At a high level, it uses multiple engines to catch different classes of issues:
 - **AI scanning** across all text files by default (can be disabled with `--no-ai`).
 
 Universal patterns are heuristic (fast but shallow). Native AST/taint is a baseline multi‑lang engine and does not replace deep, language‑specific SAST.
-
-## Project Status
-
-Active. This repo is maintained and intended for open-source use. Contributions are welcome.
-
 ## Scope
 
 - Native static analysis: JavaScript and TypeScript (AST + taint + patterns).
