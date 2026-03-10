@@ -60,6 +60,15 @@ npm link
 opensecurity scan --dry-run
 ```
 
+From npm:
+
+```bash
+npm i opensecurity
+opensecurity scan --dry-run
+```
+
+Package: `https://www.npmjs.com/package/opensecurity`
+
 ## Supported Platforms
 
 - Node.js 20+
