@@ -4,6 +4,7 @@ OpenSecurity is an open-source CLI that scans repositories for security risks us
 
 - **Static analysis (AST + taint rules)** for JavaScript/TypeScript.
 - **Universal static patterns** for popular languages (Python, Go, Java, C#, Ruby, PHP, Rust, Kotlin, Swift, C/C++).
+- **External language adapters** (when installed): Bandit (Python), gosec (Go), Brakeman (Ruby), Semgrep (Java/C#/PHP/Rust/Kotlin/Swift/C/C++).
 - **Pattern detectors** for common mistakes (secrets, crypto misuse, unsafe deserialization).
 - **Dependency CVE scanning** for npm/PyPI.
 - **AI scanning** across all text files by default (can be disabled with `--no-ai`).
@@ -14,7 +15,8 @@ Active. This repo is maintained and intended for open-source use. Contributions 
 
 ## Scope
 
-- Target languages for static analysis: JavaScript and TypeScript.
+- Native static analysis: JavaScript and TypeScript (AST + taint + patterns).
+- Adapter-based static analysis (if tools installed): Python, Go, Java, C#, PHP, Ruby, Rust, Kotlin, Swift, C/C++.
 - Dependency scanning: npm and PyPI manifests.
 - AI scanning is optional and requires an API key (defaults to scanning all text files).
 
@@ -59,6 +61,7 @@ opensecurity scan --dry-run
 - AST taint engine with configurable sources/sinks/sanitizers.
 - OWASP-aligned default rules (injection, SSRF, path traversal, XSS templates, SQLi).
 - Pattern-based detectors (hardcoded secrets, insecure crypto, unsafe deserialization).
+- Optional external adapters for top languages (Bandit, gosec, Brakeman, Semgrep).
 - Dependency scanning for npm and PyPI (`package.json`, `package-lock.json`, `requirements.txt`).
 - Text, JSON, and SARIF output.
 - Optional AI scan (API key or OAuth flow) with multiple providers.
@@ -82,13 +85,28 @@ opensecurity scan --dry-run
    - Optional multi‑agent batching with shared leader context.
    - Optional per‑file cache to skip unchanged files.
 
-5. **Dependency scan**
+5. **External language adapters**
+   - Runs optional tool adapters when installed (Bandit, gosec, Brakeman, Semgrep).
+   - Each adapter only runs if matching files exist and the tool is on PATH.
+
+6. **Dependency scan**
    - Reads `package.json`, `package-lock.json`, and `requirements.txt`.
    - Matches against CVE cache or API and adds recommendations.
 
-6. **Reporting**
+7. **Reporting**
    - Outputs text, JSON, or SARIF.
    - Optional `--fail-on`/`--fail-on-high` for CI gating.
+
+## External Adapters
+
+OpenSecurity can run optional external tools when they are installed and found on `PATH`.
+
+- `bandit` → Python
+- `gosec` → Go
+- `brakeman` → Ruby
+- `semgrep` → Java, C#, PHP, Rust, Kotlin, Swift, C/C++
+
+Adapters only run when matching files exist. Use `--disable-adapters` to skip or `--adapters` to whitelist.
 
 ## CLI
 
@@ -118,6 +136,8 @@ Common options:
 - `--ai-cache`: enable AI per-file cache (default)
 - `--no-ai-cache`: disable AI per-file cache
 - `--ai-cache-path <path>`: path to AI cache file
+- `--adapters <list>`: comma-separated adapter ids (bandit,gosec,brakeman,semgrep)
+- `--disable-adapters`: disable external static adapters
 - `--dependency-only`: only run dependency scan
 - `--no-ai`: disable AI scanning
 - `--dry-run`: list matched files without scanning
@@ -137,6 +157,8 @@ opensecurity scan --dependency-only --simulate
 opensecurity scan --ai-multi-agent --ai-batch-size 25 --ai-batch-depth 2
 opensecurity scan --diff-only --diff-base main
 opensecurity scan --path src/
+opensecurity scan --adapters bandit,gosec
+opensecurity scan --disable-adapters
 ```
 
 ### `login`
@@ -186,7 +208,9 @@ Project config: `.opensecurity.json`
   "maxChars": 4000,
   "concurrency": 2,
   "aiCache": true,
-  "aiCachePath": ".opensecurity/ai-cache.json"
+  "aiCachePath": ".opensecurity/ai-cache.json",
+  "adapters": ["bandit", "gosec", "brakeman", "semgrep"],
+  "noAdapters": false
 }
 ```
 

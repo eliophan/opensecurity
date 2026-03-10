@@ -13,6 +13,7 @@ import { runPatternDetectors } from "./analysis/patterns.js";
 import { runUniversalPatterns } from "./analysis/universalPatterns.js";
 import { loadRules } from "./rules/loadRules.js";
 import { scanDependenciesWithCves } from "./deps/engine.js";
+import { runExternalAdapters } from "./adapters/runner.js";
 
 export type Severity = "low" | "medium" | "high" | "critical";
 
@@ -72,6 +73,8 @@ export type ScanOptions = {
   aiBatchDepth?: number;
   aiCache?: boolean;
   aiCachePath?: string;
+  adapters?: string[];
+  noAdapters?: boolean;
   diffOnly?: boolean;
   diffBase?: string;
   dryRun?: boolean;
@@ -232,6 +235,22 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
         });
       }
 
+    }
+
+    const adaptersEnabled = !(options.noAdapters ?? projectConfig.noAdapters ?? false);
+    if (adaptersEnabled) {
+      const adapterFiles = files.filter((filePath) => isLikelyTextFile(filePath));
+      const { findings: adapterFindings, warnings } = await runExternalAdapters({
+        cwd,
+        files: adapterFiles,
+        allowList: options.adapters ?? projectConfig.adapters
+      });
+      for (const warning of warnings) {
+        if (options.format !== "json" && options.format !== "sarif") {
+          console.warn(warning);
+        }
+      }
+      findings.push(...adapterFindings);
     }
 
     if ((apiKey || useCodexCli) && !options.noAi) {

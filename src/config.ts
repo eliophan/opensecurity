@@ -28,6 +28,8 @@ export type ProjectConfig = {
   concurrency?: number;
   aiCache?: boolean;
   aiCachePath?: string;
+  adapters?: string[];
+  noAdapters?: boolean;
 };
 
 export const DEFAULT_INCLUDE = ["**/*"];

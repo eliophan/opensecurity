@@ -79,6 +79,10 @@ program
   .option("--ai-cache", "enable AI per-file cache")
   .option("--no-ai-cache", "disable AI per-file cache")
   .option("--ai-cache-path <path>", "path to AI cache file")
+  .option("--adapters <list>", "comma-separated external adapters (bandit,gosec,brakeman,semgrep)", (value) =>
+    value.split(",").map((item) => item.trim()).filter(Boolean)
+  )
+  .option("--disable-adapters", "disable external static adapters")
   .option("--concurrency <n>", "parallel scan workers", (v) => Number(v))
   .option("--dependency-only", "only run dependency/CVE scanning")
   .option("--no-ai", "skip AI model scanning")
@@ -171,6 +175,8 @@ async function executeScan(opts: any) {
       aiBatchDepth: opts.aiBatchDepth,
       aiCache: opts.aiCache,
       aiCachePath: opts.aiCachePath,
+      adapters: opts.adapters,
+      noAdapters: opts.disableAdapters,
       diffOnly: opts.diffOnly,
       diffBase: opts.diffBase,
       concurrency: opts.concurrency
