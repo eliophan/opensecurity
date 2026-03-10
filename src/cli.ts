@@ -72,6 +72,9 @@ program
   )
   .option("--ai-all-text", "allow AI scan on all text files (non-JS/TS)")
   .option("--ai-js-only", "limit AI scan to JS/TS only")
+  .option("--ai-multi-agent", "split AI scan into worker batches")
+  .option("--ai-batch-size <n>", "files per AI worker batch", (v) => Number(v))
+  .option("--ai-batch-depth <n>", "path depth for AI batching", (v) => Number(v))
   .option("--concurrency <n>", "parallel scan workers", (v) => Number(v))
   .option("--dependency-only", "only run dependency/CVE scanning")
   .option("--no-ai", "skip AI model scanning")
@@ -158,6 +161,9 @@ async function executeScan(opts: any) {
       dependencyOnly: opts.dependencyOnly,
       noAi: opts.noAi,
       aiAllText: opts.aiJsOnly ? false : (opts.aiAllText ?? true),
+      aiMultiAgent: opts.aiMultiAgent,
+      aiBatchSize: opts.aiBatchSize,
+      aiBatchDepth: opts.aiBatchDepth,
       diffOnly: opts.diffOnly,
       diffBase: opts.diffBase,
       concurrency: opts.concurrency

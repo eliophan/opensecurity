@@ -64,6 +64,9 @@ export type ScanOptions = {
   dependencyOnly?: boolean;
   noAi?: boolean;
   aiAllText?: boolean;
+  aiMultiAgent?: boolean;
+  aiBatchSize?: number;
+  aiBatchDepth?: number;
   diffOnly?: boolean;
   diffBase?: string;
   dryRun?: boolean;
@@ -162,6 +165,11 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
       throw new Error(`Scan size too large: Estimated ${totalEstimatedTokens} tokens exceeds guardrail limit of ${MAX_ESTIMATED_TOKENS}. Use --no-ai or narrow your scope.`);
     }
 
+    const codeByPath = new Map<string, { relPath: string; content: string; parsed: ReturnType<typeof parseSource> }>();
+    for (const file of codeFiles) {
+      codeByPath.set(file.absPath, { relPath: file.relPath, content: file.content, parsed: file.parsed });
+    }
+
     for (const file of codeFiles) {
       codeFileIndex += 1;
       // Static Rule Engine (Babel/AST)
@@ -195,111 +203,179 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
         });
       }
 
-      // AI Analysis
-      if ((apiKey || useCodexCli) && !options.noAi) {
-        const chunks = chunkCodeByBoundary(file.content, file.parsed.ast, maxChars);
-        for (let i = 0; i < chunks.length; i += 1) {
-          const prompt = buildPrompt(file.relPath, chunks[i], i + 1, chunks.length);
-          const fileIndex = codeFileIndex;
-          const chunkIndex = i + 1;
-          const totalChunks = chunks.length;
-          tasks.push(async () => {
-            if (options.onProgress) {
-              options.onProgress({
-                file: file.relPath,
-                fileIndex,
-                totalFiles: totalCodeFiles,
-                chunkIndex,
-                totalChunks
-              });
-            }
-            const parsed = useCodexCli
-              ? await callCodexCliWithRetry(
-                  prompt,
-                  maxRetries,
-                  retryDelayMs,
-                  options.liveOutput ? options.onOutputChunk : undefined
-                )
-              : await (async () => {
-                  const responseText = await callModelWithRetry(
-                    {
-                      provider,
-                      apiKey: apiKey!,
-                      baseUrl: provider === "openai" ? baseUrl : globalConfig.providerBaseUrl,
-                      apiType,
-                      model,
-                      prompt
-                    },
-                    maxRetries,
-                    retryDelayMs
-                  );
-                  return extractJson(responseText);
-                })();
+    }
 
-            if (!parsed?.findings) return;
-            for (const finding of parsed.findings) {
-              findings.push({
-                ...finding,
-                file: finding.file ?? relPath
-              });
+    if ((apiKey || useCodexCli) && !options.noAi) {
+      if (options.aiMultiAgent) {
+        const batchSize = Math.max(1, options.aiBatchSize ?? 25);
+        const batchDepth = Math.max(1, options.aiBatchDepth ?? 2);
+        const relPaths = aiEligibleFiles.map((filePath) => path.relative(cwd, filePath));
+        const grouped = groupFilesByModule(relPaths, batchDepth);
+        const batches = createBatches(grouped, batchSize);
+        let fileCounter = 0;
+
+        for (const batch of batches) {
+          tasks.push(async () => {
+            for (const relPath of batch.files) {
+              fileCounter += 1;
+              const absPath = path.resolve(cwd, relPath);
+              const cached = codeByPath.get(absPath);
+              const content = cached?.content ?? await fs.readFile(absPath, "utf8");
+              const chunks = cached?.parsed
+                ? chunkCodeByBoundary(content, cached.parsed.ast, maxChars)
+                : chunkText(content, maxChars);
+
+              for (let i = 0; i < chunks.length; i += 1) {
+                const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
+                if (options.onProgress) {
+                  options.onProgress({
+                    file: relPath,
+                    fileIndex: fileCounter,
+                    totalFiles: relPaths.length,
+                    chunkIndex: i + 1,
+                    totalChunks: chunks.length
+                  });
+                }
+                const parsed = useCodexCli
+                  ? await callCodexCliWithRetry(
+                      prompt,
+                      maxRetries,
+                      retryDelayMs,
+                      options.liveOutput ? options.onOutputChunk : undefined
+                    )
+                  : await (async () => {
+                      const responseText = await callModelWithRetry(
+                        {
+                          provider,
+                          apiKey: apiKey!,
+                          baseUrl: provider === "openai" ? baseUrl : globalConfig.providerBaseUrl,
+                          apiType,
+                          model,
+                          prompt
+                        },
+                        maxRetries,
+                        retryDelayMs
+                      );
+                      return extractJson(responseText);
+                    })();
+
+                if (!parsed?.findings) continue;
+                for (const finding of parsed.findings) {
+                  findings.push({
+                    ...finding,
+                    file: finding.file ?? relPath
+                  });
+                }
+              }
             }
           });
         }
-      }
-    }
-
-    if ((apiKey || useCodexCli) && !options.noAi && (options.aiAllText ?? true)) {
-      const nonJsFiles = aiEligibleFiles.filter((filePath) => !isAnalyzableFile(filePath));
-      for (const filePath of nonJsFiles) {
-        const relPath = path.relative(cwd, filePath);
-        const content = await fs.readFile(filePath, "utf8");
-        const chunks = chunkText(content, maxChars);
-        for (let i = 0; i < chunks.length; i += 1) {
-          const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
-          const fileIndex = totalCodeFiles + 1;
-          const chunkIndex = i + 1;
-          const totalChunks = chunks.length;
-          tasks.push(async () => {
-            if (options.onProgress) {
-              options.onProgress({
-                file: relPath,
-                fileIndex,
-                totalFiles: totalCodeFiles,
-                chunkIndex,
-                totalChunks
-              });
-            }
-            const parsed = useCodexCli
-              ? await callCodexCliWithRetry(
-                  prompt,
-                  maxRetries,
-                  retryDelayMs,
-                  options.liveOutput ? options.onOutputChunk : undefined
-                )
-              : await (async () => {
-                  const responseText = await callModelWithRetry(
-                    {
-                      provider,
-                      apiKey: apiKey!,
-                      baseUrl: provider === "openai" ? baseUrl : globalConfig.providerBaseUrl,
-                      apiType,
-                      model,
-                      prompt
-                    },
+      } else {
+        for (const file of codeFiles) {
+          const chunks = chunkCodeByBoundary(file.content, file.parsed.ast, maxChars);
+          for (let i = 0; i < chunks.length; i += 1) {
+            const prompt = buildPrompt(file.relPath, chunks[i], i + 1, chunks.length);
+            const fileIndex = codeFileIndex;
+            const chunkIndex = i + 1;
+            const totalChunks = chunks.length;
+            tasks.push(async () => {
+              if (options.onProgress) {
+                options.onProgress({
+                  file: file.relPath,
+                  fileIndex,
+                  totalFiles: totalCodeFiles,
+                  chunkIndex,
+                  totalChunks
+                });
+              }
+              const parsed = useCodexCli
+                ? await callCodexCliWithRetry(
+                    prompt,
                     maxRetries,
-                    retryDelayMs
-                  );
-                  return extractJson(responseText);
-                })();
+                    retryDelayMs,
+                    options.liveOutput ? options.onOutputChunk : undefined
+                  )
+                : await (async () => {
+                    const responseText = await callModelWithRetry(
+                      {
+                        provider,
+                        apiKey: apiKey!,
+                        baseUrl: provider === "openai" ? baseUrl : globalConfig.providerBaseUrl,
+                        apiType,
+                        model,
+                        prompt
+                      },
+                      maxRetries,
+                      retryDelayMs
+                    );
+                    return extractJson(responseText);
+                  })();
 
-            if (!parsed?.findings) return;
-            for (const finding of parsed.findings) {
-              findings.push({
-                ...finding,
-                file: finding.file ?? relPath
+              if (!parsed?.findings) return;
+              for (const finding of parsed.findings) {
+                findings.push({
+                  ...finding,
+                  file: finding.file ?? file.relPath
+                });
+              }
+            });
+          }
+        }
+
+        if (options.aiAllText ?? true) {
+          const nonJsFiles = aiEligibleFiles.filter((filePath) => !isAnalyzableFile(filePath));
+          for (const filePath of nonJsFiles) {
+            const relPath = path.relative(cwd, filePath);
+            const content = await fs.readFile(filePath, "utf8");
+            const chunks = chunkText(content, maxChars);
+            for (let i = 0; i < chunks.length; i += 1) {
+              const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
+              const fileIndex = totalCodeFiles + 1;
+              const chunkIndex = i + 1;
+              const totalChunks = chunks.length;
+              tasks.push(async () => {
+                if (options.onProgress) {
+                  options.onProgress({
+                    file: relPath,
+                    fileIndex,
+                    totalFiles: totalCodeFiles,
+                    chunkIndex,
+                    totalChunks
+                  });
+                }
+                const parsed = useCodexCli
+                  ? await callCodexCliWithRetry(
+                      prompt,
+                      maxRetries,
+                      retryDelayMs,
+                      options.liveOutput ? options.onOutputChunk : undefined
+                    )
+                  : await (async () => {
+                      const responseText = await callModelWithRetry(
+                        {
+                          provider,
+                          apiKey: apiKey!,
+                          baseUrl: provider === "openai" ? baseUrl : globalConfig.providerBaseUrl,
+                          apiType,
+                          model,
+                          prompt
+                        },
+                        maxRetries,
+                        retryDelayMs
+                      );
+                      return extractJson(responseText);
+                    })();
+
+                if (!parsed?.findings) return;
+                for (const finding of parsed.findings) {
+                  findings.push({
+                    ...finding,
+                    file: finding.file ?? relPath
+                  });
+                }
               });
             }
-          });
+          }
         }
       }
     }
@@ -1003,6 +1079,40 @@ function isLikelyTextFile(filePath: string): boolean {
     ".bin", ".exe", ".dmg", ".iso"
   ]);
   return !blocked.has(ext);
+}
+
+type FileBatch = { key: string; files: string[] };
+
+function groupFilesByModule(relPaths: string[], depth: number): Map<string, string[]> {
+  const groups = new Map<string, string[]>();
+  for (const relPath of relPaths) {
+    const normalized = relPath.split(path.sep).join("/");
+    const parts = normalized.split("/");
+    let key = "root";
+    if (parts[0] === "src" && parts.length > 1) {
+      key = ["src", ...parts.slice(1, 1 + depth)].join("/");
+    } else if (parts[0] === "packages" && parts.length > 1) {
+      key = ["packages", parts[1]].join("/");
+    } else if (parts[0] === "apps" && parts.length > 1) {
+      key = ["apps", parts[1]].join("/");
+    } else if (parts.length > 1) {
+      key = parts[0];
+    }
+    const bucket = groups.get(key) ?? [];
+    bucket.push(normalized);
+    groups.set(key, bucket);
+  }
+  return groups;
+}
+
+function createBatches(groups: Map<string, string[]>, batchSize: number): FileBatch[] {
+  const batches: FileBatch[] = [];
+  for (const [key, files] of groups.entries()) {
+    for (let i = 0; i < files.length; i += batchSize) {
+      batches.push({ key, files: files.slice(i, i + batchSize) });
+    }
+  }
+  return batches;
 }
 
 const execFileAsync = promisify(execFile);

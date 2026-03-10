@@ -79,6 +79,9 @@ Common options:
 - `--ai-js-only`: limit AI scan to JS/TS only
 - `--diff-only`: scan only files changed in git
 - `--diff-base <ref>`: git base ref for diff-only (default: HEAD)
+- `--ai-multi-agent`: split AI scan into worker batches
+- `--ai-batch-size <n>`: files per AI worker batch (default: 25)
+- `--ai-batch-depth <n>`: path depth for AI batching (default: 2)
 - `--dependency-only`: only run dependency scan
 - `--no-ai`: disable AI scanning
 - `--dry-run`: list matched files without scanning
