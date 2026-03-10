@@ -38,13 +38,10 @@ Active. This repo is maintained and intended for open-source use. Contributions 
 - For compliance-grade coverage, use dedicated SAST/compliance tooling.
 - Use it as a complementary signal, not a single source of truth.
 
-## Install
-
-Install from npm (required for normal use):
+## Install(recommended)
+Node.js 20+ is required.
 
 ```bash
-npm i -g n
-n 20
 npm i opensecurity
 ```
 
@@ -52,7 +49,7 @@ Package: `https://www.npmjs.com/package/opensecurity`
 
 No build step is required when installing from npm.
 
-## Quick Start (Users)
+## Quick Start
 
 1) Configure API key (optional, only if you want AI scanning):
 
