@@ -1,8 +1,33 @@
 {
   "name": "opensecurity",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": false,
+  "description": "Open-source CLI for scanning repositories for security risks across code, infra, and dependencies.",
+  "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eliophan/opensecurity.git"
+  },
+  "homepage": "https://github.com/eliophan/opensecurity",
+  "bugs": {
+    "url": "https://github.com/eliophan/opensecurity/issues"
+  },
+  "keywords": [
+    "security",
+    "sast",
+    "static-analysis",
+    "taint",
+    "vulnerability",
+    "scanner",
+    "devsecops",
+    "cli",
+    "dependency",
+    "ai"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "bin": {
     "opensecurity": "dist/ui/cli.js",
     "openSecurity": "dist/ui/cli.js"
