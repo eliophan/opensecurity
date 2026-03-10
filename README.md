@@ -27,6 +27,7 @@ Active. This repo is maintained and intended for open-source use. Contributions 
 - Infra/config static patterns: Dockerfile, Kubernetes/Helm YAML, Terraform, generic YAML.
 - Dependency scanning: npm and PyPI manifests.
 - AI scanning is optional and requires an API key (defaults to scanning all text files when enabled). If no API key is configured, AI scanning is skipped.
+- AI scanning is optional but **recommended** for deeper coverage across large repos and non-JS/TS code.
 
 ## Non-Goals
 
