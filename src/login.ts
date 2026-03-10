@@ -562,8 +562,7 @@ function getProviderModelChoices(provider: Provider): string[] {
     case "google":
       return [
         "gemini-2.5-pro",
-        "gemini-2.5-flash",
-        "gemini-flash-latest"
+        "gemini-2.5-flash"
       ];
     case "mistral":
       return [
