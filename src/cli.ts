@@ -79,6 +79,7 @@ program
   .option("--diff-base <ref>", "git base ref for diff-only (default: HEAD)")
   .option("--dry-run", "list matched files without calling the model")
   .option("--fail-on <severity>", "fail if findings are >= severity (low|medium|high|critical)")
+  .option("--fail-on-high", "fail if findings are >= high")
   .option("--sarif-output <path>", "write SARIF to file in addition to primary output")
   .option("--verbose", "show detailed progress information")
   .action(async (opts) => {
@@ -204,6 +205,13 @@ async function executeScan(opts: any) {
         if (worst !== null && worst >= threshold) {
           process.exitCode = 1;
         }
+      }
+    }
+    if (opts.failOnHigh) {
+      const threshold = severityRank("high");
+      const worst = highestSeverity(result.findings);
+      if (worst !== null && threshold !== null && worst >= threshold) {
+        process.exitCode = 1;
       }
     }
 

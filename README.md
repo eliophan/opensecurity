@@ -83,6 +83,7 @@ Common options:
 - `--no-ai`: disable AI scanning
 - `--dry-run`: list matched files without scanning
 - `--fail-on <severity>`: exit 1 if findings >= severity
+- `--fail-on-high`: exit 1 if findings >= high
 - `--sarif-output <path>`: write SARIF alongside primary output
 - `--concurrency <n>`: parallel scan workers
 - `--max-chars <n>`: max chars per chunk for AI scanning
