@@ -1,7 +1,7 @@
 {
   "name": "opensecurity",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "bin": {
     "opensecurity": "dist/cli.js",
@@ -11,9 +11,16 @@
     "dev": "tsx src/cli.ts",
     "proxy": "tsx src/proxy.ts",
     "build": "tsc",
+    "prepack": "npm run build",
+    "package": "npm run build && npm pack",
     "test": "vitest run",
     "lint": "eslint ."
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "dependencies": {
     "@babel/parser": "^7.26.9",
     "@babel/traverse": "^7.26.9",
