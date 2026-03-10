@@ -41,6 +41,7 @@ export const SCHEMA_VERSION = "1.0.0";
 
 export type ScanOptions = {
   cwd?: string;
+  targetPath?: string;
   format?: "text" | "json";
   maxChars?: number;
   model?: string;
@@ -86,8 +87,14 @@ const MAX_ESTIMATED_TOKENS = 50000; // Guardrail: reject massive scans
 const CHARS_PER_TOKEN = 4; // Simple heuristic for estimation
 
 export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
-  const cwd = options.cwd ?? process.cwd();
-  const { filters, globalConfig, projectConfig } = await resolveScanContext(options, cwd);
+  const resolvedRoot = options.targetPath
+    ? path.resolve(options.cwd ?? process.cwd(), options.targetPath)
+    : (options.cwd ?? process.cwd());
+  const rootStats = await safeStat(resolvedRoot);
+  const cwd = rootStats?.isDirectory() ? resolvedRoot : path.dirname(resolvedRoot);
+  const targetFile = rootStats?.isFile() ? resolvedRoot : undefined;
+
+  const { filters, globalConfig, projectConfig } = await resolveScanContext(options, cwd, targetFile);
   const rules = await loadRules(options.rulesPath ?? projectConfig.rulesPath, cwd);
 
   const provider = options.provider ?? globalConfig.provider ?? "openai";
@@ -475,18 +482,29 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
 }
 
 export async function listMatchedFiles(options: ScanOptions = {}): Promise<string[]> {
-  const cwd = options.cwd ?? process.cwd();
-  const { filters } = await resolveScanContext(options, cwd);
+  const resolvedRoot = options.targetPath
+    ? path.resolve(options.cwd ?? process.cwd(), options.targetPath)
+    : (options.cwd ?? process.cwd());
+  const rootStats = await safeStat(resolvedRoot);
+  const cwd = rootStats?.isDirectory() ? resolvedRoot : path.dirname(resolvedRoot);
+  const targetFile = rootStats?.isFile() ? resolvedRoot : undefined;
+  const { filters } = await resolveScanContext(options, cwd, targetFile);
   return walkFiles(cwd, filters);
 }
 
-async function resolveScanContext(options: ScanOptions, cwd: string) {
+async function resolveScanContext(options: ScanOptions, cwd: string, targetFile?: string) {
   const globalConfig = await loadGlobalConfig();
   const projectConfig = await loadProjectConfig(cwd);
-  const filters = resolveProjectFilters({
+  const baseFilters = resolveProjectFilters({
     include: options.include ?? projectConfig.include,
     exclude: options.exclude ?? projectConfig.exclude
   });
+  const filters = targetFile
+    ? {
+        include: [path.relative(cwd, targetFile).split(path.sep).join("/")],
+        exclude: []
+      }
+    : baseFilters;
   const mergedGlobals = {
     ...globalConfig,
     authMode: options.authMode ?? globalConfig.authMode
@@ -1232,6 +1250,14 @@ function computeCacheKey(provider: Provider, model: string, content: string): st
     .update("|")
     .update(content)
     .digest("hex");
+}
+
+async function safeStat(target: string): Promise<import("node:fs").Stats | null> {
+  try {
+    return await fs.stat(target);
+  } catch {
+    return null;
+  }
 }
 
 const execFileAsync = promisify(execFile);

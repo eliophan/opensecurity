@@ -77,6 +77,7 @@ Common options:
 - `--provider <provider>`: `openai|anthropic|google|mistral|xai|cohere`
 - `--ai-all-text`: allow AI scan on all text files (non-JS/TS) (default)
 - `--ai-js-only`: limit AI scan to JS/TS only
+- `--path <path>`: scan a specific file or directory
 - `--diff-only`: scan only files changed in git
 - `--diff-base <ref>`: git base ref for diff-only (default: HEAD)
 - `--ai-multi-agent`: split AI scan into worker batches

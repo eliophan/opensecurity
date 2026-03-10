@@ -59,6 +59,7 @@ program
   })
   .option("--provider <provider>", "openai|anthropic|google|mistral|xai|cohere")
   .option("--cwd <cwd>", "override working directory")
+  .option("--path <path>", "scan a specific file or directory")
   .option("--include <pattern...>", "include glob patterns (overrides project config)")
   .option("--exclude <pattern...>", "exclude glob patterns (overrides project config)")
   .option("--rules <path>", "path to rules JSON (overrides project config)")
@@ -154,6 +155,7 @@ async function executeScan(opts: any) {
         if (useSpinner) spinner.resume();
       } : undefined,
       cwd: opts.cwd,
+      targetPath: opts.path,
       include: opts.include,
       exclude: opts.exclude,
       rulesPath: opts.rules,
