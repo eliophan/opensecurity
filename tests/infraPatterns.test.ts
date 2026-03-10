@@ -19,4 +19,28 @@ describe("infra patterns", () => {
     const findings = runInfraPatterns(code, "main.tf");
     expect(findings.some((f) => f.id === "terraform-public-sg")).toBe(true);
   });
+
+  it("detects k8s allow privilege escalation", () => {
+    const code = "securityContext:\n  allowPrivilegeEscalation: true";
+    const findings = runInfraPatterns(code, "deployment.yaml");
+    expect(findings.some((f) => f.id === "k8s-allow-priv-esc")).toBe(true);
+  });
+
+  it("detects k8s seccomp unconfined", () => {
+    const code = "securityContext:\n  seccompProfile:\n    type: Unconfined";
+    const findings = runInfraPatterns(code, "deployment.yaml");
+    expect(findings.some((f) => f.id === "k8s-seccomp-unconfined")).toBe(true);
+  });
+
+  it("detects terraform public s3 acl", () => {
+    const code = "resource \"aws_s3_bucket\" \"b\" { acl = \"public-read\" }";
+    const findings = runInfraPatterns(code, "main.tf");
+    expect(findings.some((f) => f.id === "terraform-public-s3-acl")).toBe(true);
+  });
+
+  it("detects terraform public rds", () => {
+    const code = "publicly_accessible = true";
+    const findings = runInfraPatterns(code, "db.tf");
+    expect(findings.some((f) => f.id === "terraform-rds-public")).toBe(true);
+  });
 });
