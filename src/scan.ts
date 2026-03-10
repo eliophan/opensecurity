@@ -657,15 +657,15 @@ async function callAnthropicModel(params: CallModelParams): Promise<string> {
 
 async function callGeminiModel(params: CallModelParams): Promise<string> {
   const { apiKey, baseUrl, model, prompt } = params;
-  const base = baseUrl ?? "https://generativelanguage.googleapis.com/v1beta";
-  const modelPath = model.startsWith("models/") ? model : `models/${model}`;
-  const url = `${base}/${modelPath}:generateContent?key=${apiKey}`;
+  const base = baseUrl ?? "https://generativelanguage.googleapis.com/v1beta/models";
+  const modelPath = model.startsWith("models/") ? model.slice("models/".length) : model;
+  const url = `${base}/${modelPath}:generateContent`;
   const body = JSON.stringify({
     contents: [{ role: "user", parts: [{ text: prompt }] }]
   });
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
     body
   });
   if (!res.ok) {
