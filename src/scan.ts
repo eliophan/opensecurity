@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import traverseImport from "@babel/traverse";
 import { loadGlobalConfig, loadProjectConfig, resolveProjectFilters } from "./config.js";
 import { getOAuthProfile, isTokenExpired, saveOAuthProfile, type OAuthProfile } from "./oauthStore.js";
 import { walkFiles } from "./fileWalker.js";
@@ -104,54 +105,57 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
     const totalCodeFiles = files.filter((filePath) => isAnalyzableFile(filePath)).length;
     let codeFileIndex = 0;
     let totalEstimatedTokens = 0;
+
+    const codeFiles: Array<{
+      absPath: string;
+      relPath: string;
+      content: string;
+      parsed: ReturnType<typeof parseSource>;
+    }> = [];
+
     for (const filePath of files) {
-      if (isAnalyzableFile(filePath)) {
-        const content = await fs.readFile(filePath, "utf8");
-        totalEstimatedTokens += Math.ceil(content.length / CHARS_PER_TOKEN);
-      }
+      if (!isAnalyzableFile(filePath)) continue;
+      const content = await fs.readFile(filePath, "utf8");
+      totalEstimatedTokens += Math.ceil(content.length / CHARS_PER_TOKEN);
+      const relPath = path.relative(cwd, filePath);
+      const parsed = parseSource(content, relPath);
+      codeFiles.push({ absPath: filePath, relPath, content, parsed });
     }
 
     if (apiKey && !options.noAi && totalEstimatedTokens > MAX_ESTIMATED_TOKENS) {
       throw new Error(`Scan size too large: Estimated ${totalEstimatedTokens} tokens exceeds guardrail limit of ${MAX_ESTIMATED_TOKENS}. Use --no-ai or narrow your scope.`);
     }
 
-    for (const filePath of files) {
-      const relPath = path.relative(cwd, filePath);
-      const isCode = isAnalyzableFile(filePath);
-      const content = await fs.readFile(filePath, "utf8");
-
-      if (isCode) {
-        codeFileIndex += 1;
-        // Static Rule Engine (Babel/AST)
-        const parsed = parseSource(content, relPath);
-        const ruleFindings = runRuleEngine(parsed.ast, relPath, rules);
-        for (const finding of ruleFindings) {
-          findings.push({
-            id: finding.ruleId,
-            severity: finding.severity,
-            title: finding.ruleName,
-            description: `${finding.message} [${finding.owasp}]`,
-            file: finding.file,
-            line: finding.line,
-            column: finding.column,
-            owasp: finding.owasp,
-            category: "code"
-          });
-        }
+    for (const file of codeFiles) {
+      codeFileIndex += 1;
+      // Static Rule Engine (Babel/AST)
+      const ruleFindings = runRuleEngine(file.parsed.ast, file.relPath, rules);
+      for (const finding of ruleFindings) {
+        findings.push({
+          id: finding.ruleId,
+          severity: finding.severity,
+          title: finding.ruleName,
+          description: `${finding.message} [${finding.owasp}]`,
+          file: finding.file,
+          line: finding.line,
+          column: finding.column,
+          owasp: finding.owasp,
+          category: "code"
+        });
       }
 
       // AI Analysis
-      if ((apiKey || useCodexCli) && !options.noAi && isCode) {
-        const chunks = chunkText(content, maxChars);
+      if ((apiKey || useCodexCli) && !options.noAi) {
+        const chunks = chunkCodeByBoundary(file.content, file.parsed.ast, maxChars);
         for (let i = 0; i < chunks.length; i += 1) {
-          const prompt = buildPrompt(relPath, chunks[i], i + 1, chunks.length);
+          const prompt = buildPrompt(file.relPath, chunks[i], i + 1, chunks.length);
           const fileIndex = codeFileIndex;
           const chunkIndex = i + 1;
           const totalChunks = chunks.length;
           tasks.push(async () => {
             if (options.onProgress) {
               options.onProgress({
-                file: relPath,
+                file: file.relPath,
                 fileIndex,
                 totalFiles: totalCodeFiles,
                 chunkIndex,
@@ -254,6 +258,92 @@ export function chunkText(text: string, maxChars: number): string[] {
     offset += maxChars;
   }
   return chunks;
+}
+
+export function chunkCodeByBoundary(code: string, ast: import("@babel/types").File, maxChars: number): string[] {
+  const segments: Array<{ start: number; end: number }> = [];
+  const functionSegments = collectFunctionSegments(ast);
+
+  const body = ast.program.body ?? [];
+  for (const node of body) {
+    const range = getNodeRange(node);
+    if (!range) continue;
+    if (functionSegments.some((seg) => isRangeInside(range, seg))) continue;
+    segments.push(range);
+  }
+
+  segments.push(...functionSegments);
+  segments.sort((a, b) => a.start - b.start);
+
+  if (!segments.length) {
+    return chunkText(code, maxChars);
+  }
+
+  const chunks: string[] = [];
+  for (const seg of segments) {
+    const slice = code.slice(seg.start, seg.end);
+    if (slice.length <= maxChars) {
+      chunks.push(slice);
+    } else {
+      chunks.push(...chunkText(slice, maxChars));
+    }
+  }
+
+  return chunks.length ? chunks : chunkText(code, maxChars);
+}
+
+function collectFunctionSegments(ast: import("@babel/types").File): Array<{ start: number; end: number }> {
+  const traverse = normalizeTraverse(traverseImport);
+  const segments: Array<{ start: number; end: number }> = [];
+  let functionDepth = 0;
+
+  traverse(ast, {
+    Function: {
+      enter(path) {
+        if (functionDepth === 0) {
+          const inClass = Boolean(
+            path.findParent((parent) => parent.isClassDeclaration() || parent.isClassExpression())
+          );
+          if (!inClass) {
+            const range = getFunctionRange(path);
+            if (range) segments.push(range);
+          }
+        }
+        functionDepth += 1;
+      },
+      exit() {
+        functionDepth = Math.max(0, functionDepth - 1);
+      }
+    }
+  });
+
+  return segments;
+}
+
+function getFunctionRange(
+  path: import("@babel/traverse").NodePath
+): { start: number; end: number } | null {
+  const node = path.node as any;
+  if (path.isFunctionDeclaration() || path.isObjectMethod() || path.isClassMethod() || path.isClassPrivateMethod()) {
+    return getNodeRange(node);
+  }
+  const stmt = path.getStatementParent();
+  if (stmt) {
+    const range = getNodeRange(stmt.node);
+    if (range) return range;
+  }
+  return getNodeRange(node);
+}
+
+function getNodeRange(node: any): { start: number; end: number } | null {
+  const start = node?.start;
+  const end = node?.end;
+  if (typeof start !== "number" || typeof end !== "number" || end <= start) return null;
+  return { start, end };
+}
+
+function isRangeInside(inner: { start: number; end: number }, outer: { start: number; end: number }): boolean {
+  return inner.start >= outer.start && inner.end <= outer.end;
 }
 
 function buildPrompt(filePath: string, chunk: string, index: number, total: number): string {
@@ -639,4 +729,10 @@ function mapSeverityToSarif(severity: Severity): "error" | "warning" | "note" {
     default:
       return "note";
   }
+}
+
+function normalizeTraverse(
+  value: typeof traverseImport
+): typeof traverseImport {
+  return (value as unknown as { default?: typeof traverseImport }).default ?? value;
 }

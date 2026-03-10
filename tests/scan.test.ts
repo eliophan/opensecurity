@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { listMatchedFiles, scan } from "../src/scan.js";
+import { listMatchedFiles, scan, chunkCodeByBoundary } from "../src/scan.js";
+import { parseSource } from "../src/analysis/ast.js";
 
 async function createTempDir(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), "opensecurity-"));
@@ -77,5 +78,26 @@ describe("scan options", () => {
     } else {
       process.env.OPENSECURITY_CONFIG_HOME = prevConfigHome;
     }
+  });
+
+  it("chunks along function boundaries", async () => {
+    const code = `
+      const shared = "ok";
+      function alpha() {
+        const input = getUserInput();
+        return input + shared;
+      }
+      function beta() {
+        return shared;
+      }
+    `;
+    const parsed = parseSource(code, "test.ts");
+    const chunks = chunkCodeByBoundary(code, parsed.ast, 1000);
+
+    expect(chunks.length).toBe(3);
+    const alphaChunk = chunks.find((chunk) => chunk.includes("function alpha"));
+    const betaChunk = chunks.find((chunk) => chunk.includes("function beta"));
+    expect(alphaChunk).toContain("return input + shared;");
+    expect(betaChunk).toContain("return shared;");
   });
 });

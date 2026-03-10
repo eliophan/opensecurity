@@ -63,6 +63,7 @@ program
     "low|medium|high (affects risk scoring)",
     "medium"
   )
+  .option("--concurrency <n>", "parallel scan workers", (v) => Number(v), 2)
   .option("--dependency-only", "only run dependency/CVE scanning")
   .option("--no-ai", "skip AI model scanning")
   .option("--dry-run", "list matched files without calling the model")
@@ -142,7 +143,8 @@ async function executeScan(opts: any) {
       simulate: opts.simulate,
       dataSensitivity: opts.dataSensitivity,
       dependencyOnly: opts.dependencyOnly,
-      noAi: opts.noAi
+      noAi: opts.noAi,
+      concurrency: opts.concurrency
     });
 
     const elapsed = Date.now() - startTime;
