@@ -4,6 +4,7 @@ OpenSecurity is an open-source CLI that scans repositories for security risks us
 
 - **Static analysis (AST + taint rules)** for JavaScript/TypeScript.
 - **Universal static patterns** for popular languages (Python, Go, Java, C#, Ruby, PHP, Rust, Kotlin, Swift, C/C++).
+- **Native AST/taint (Tree‑sitter)** for Python, Go, Java, C#, Ruby, PHP, Rust, Kotlin, Swift, C/C++.
 - **External language adapters** (when installed): Bandit (Python), gosec (Go), Brakeman (Ruby), Semgrep (Java/C#/PHP/Rust/Kotlin/Swift/C/C++).
 - **Infra/config patterns** for Dockerfile, Kubernetes/Helm YAML, Terraform, and generic YAML misconfigurations.
 - **Pattern detectors** for common mistakes (secrets, crypto misuse, unsafe deserialization).
@@ -17,6 +18,7 @@ Active. This repo is maintained and intended for open-source use. Contributions 
 ## Scope
 
 - Native static analysis: JavaScript and TypeScript (AST + taint + patterns).
+- Native AST/taint via Tree‑sitter: Python, Go, Java, C#, Ruby, PHP, Rust, Kotlin, Swift, C/C++.
 - Adapter-based static analysis (if tools installed): Python, Go, Java, C#, PHP, Ruby, Rust, Kotlin, Swift, C/C++.
 - Infra/config static patterns: Dockerfile, Kubernetes/Helm YAML, Terraform, generic YAML.
 - Dependency scanning: npm and PyPI manifests.
@@ -87,18 +89,22 @@ opensecurity scan --dry-run
    - Optional multi‑agent batching with shared leader context.
    - Optional per‑file cache to skip unchanged files.
 
-5. **External language adapters**
+5. **Native AST/taint (Tree‑sitter)**
+   - Loads Tree‑sitter parsers (WASM default, native optional).
+   - Runs taint rules per language for core injection/path/SSRF/deserialization/XSS.
+
+6. **External language adapters**
    - Runs optional tool adapters when installed (Bandit, gosec, Brakeman, Semgrep).
    - Each adapter only runs if matching files exist and the tool is on PATH.
 
-6. **Infra/config patterns**
+7. **Infra/config patterns**
    - Scans Dockerfile, Terraform, and Kubernetes/Helm YAML for risky defaults.
 
-7. **Dependency scan**
+8. **Dependency scan**
    - Reads `package.json`, `package-lock.json`, and `requirements.txt`.
    - Matches against CVE cache or API and adds recommendations.
 
-8. **Reporting**
+9. **Reporting**
    - Outputs text, JSON, or SARIF.
    - Optional `--fail-on`/`--fail-on-high` for CI gating.
 
@@ -112,6 +118,18 @@ OpenSecurity can run optional external tools when they are installed and found o
 - `semgrep` → Java, C#, PHP, Rust, Kotlin, Swift, C/C++
 
 Adapters only run when matching files exist. Use `--disable-adapters` to skip or `--adapters` to whitelist.
+
+## Tree-sitter Grammars
+
+Native AST/taint uses Tree‑sitter grammars. WASM grammars live in `assets/grammars`.
+
+Build them locally:
+
+```bash
+npm run build-grammars
+```
+
+If WASM grammars are missing, OpenSecurity will try native Tree‑sitter bindings (if installed) and otherwise skip native taint for that language with a warning.
 
 ## Infra/Config Coverage
 
@@ -150,6 +168,12 @@ Common options:
 - `--ai-cache`: enable AI per-file cache (default)
 - `--no-ai-cache`: disable AI per-file cache
 - `--ai-cache-path <path>`: path to AI cache file
+- `--native-taint`: enable native multi-language taint engine (default)
+- `--no-native-taint`: disable native multi-language taint engine
+- `--native-langs <list>`: comma-separated native languages (python,go,java,csharp,ruby,php,rust,kotlin,swift,c,cpp)
+- `--native-cache`: enable native taint cache (default)
+- `--no-native-cache`: disable native taint cache
+- `--native-cache-path <path>`: path to native taint cache file
 - `--adapters <list>`: comma-separated adapter ids (bandit,gosec,brakeman,semgrep)
 - `--disable-adapters`: disable external static adapters
 - `--dependency-only`: only run dependency scan
@@ -173,6 +197,7 @@ opensecurity scan --diff-only --diff-base main
 opensecurity scan --path src/
 opensecurity scan --adapters bandit,gosec
 opensecurity scan --disable-adapters
+opensecurity scan --native-langs python,go,java
 ```
 
 ### `login`
@@ -223,6 +248,10 @@ Project config: `.opensecurity.json`
   "concurrency": 2,
   "aiCache": true,
   "aiCachePath": ".opensecurity/ai-cache.json",
+  "nativeTaint": true,
+  "nativeTaintLanguages": ["python", "go", "java", "csharp", "ruby", "php", "rust", "kotlin", "swift", "c", "cpp"],
+  "nativeTaintCache": true,
+  "nativeTaintCachePath": ".opensecurity/native-taint-cache.json",
   "adapters": ["bandit", "gosec", "brakeman", "semgrep"],
   "noAdapters": false
 }
