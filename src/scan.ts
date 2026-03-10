@@ -121,7 +121,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
     let codeFileIndex = 0;
     let totalEstimatedTokens = 0;
 
-    const aiEligibleFiles = options.aiAllText
+    const aiEligibleFiles = (options.aiAllText ?? true)
       ? files.filter((filePath) => isLikelyTextFile(filePath))
       : files.filter((filePath) => isAnalyzableFile(filePath));
 
@@ -141,7 +141,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
       codeFiles.push({ absPath: filePath, relPath, content, parsed });
     }
 
-    if (options.aiAllText) {
+    if (options.aiAllText ?? true) {
       for (const filePath of aiEligibleFiles) {
         if (isAnalyzableFile(filePath)) continue;
         const content = await fs.readFile(filePath, "utf8");
@@ -239,7 +239,7 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
       }
     }
 
-    if ((apiKey || useCodexCli) && !options.noAi && options.aiAllText) {
+    if ((apiKey || useCodexCli) && !options.noAi && (options.aiAllText ?? true)) {
       const nonJsFiles = aiEligibleFiles.filter((filePath) => !isAnalyzableFile(filePath));
       for (const filePath of nonJsFiles) {
         const relPath = path.relative(cwd, filePath);

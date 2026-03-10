@@ -71,6 +71,7 @@ program
     "medium"
   )
   .option("--ai-all-text", "allow AI scan on all text files (non-JS/TS)")
+  .option("--ai-js-only", "limit AI scan to JS/TS only")
   .option("--concurrency <n>", "parallel scan workers", (v) => Number(v))
   .option("--dependency-only", "only run dependency/CVE scanning")
   .option("--no-ai", "skip AI model scanning")
@@ -153,7 +154,7 @@ async function executeScan(opts: any) {
       dataSensitivity: opts.dataSensitivity,
       dependencyOnly: opts.dependencyOnly,
       noAi: opts.noAi,
-      aiAllText: opts.aiAllText,
+      aiAllText: opts.aiJsOnly ? false : (opts.aiAllText ?? true),
       concurrency: opts.concurrency
     });
 
