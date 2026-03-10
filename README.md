@@ -7,6 +7,22 @@ It combines:
 - Dependency scanning with CVE lookup (local cache or API).
 - Optional AI-assisted scanning for deeper findings.
 
+## Project Status
+
+Active. This repo is maintained and intended for open-source use. Contributions are welcome.
+
+## Scope
+
+- Target languages for static analysis: JavaScript and TypeScript.
+- Dependency scanning: npm and PyPI manifests.
+- AI scanning is optional and requires an API key.
+
+## Non-Goals
+
+- This tool is not a full SAST replacement or compliance scanner.
+- It does not execute or sandbox code.
+- It does not guarantee complete coverage of all vulnerabilities.
+
 ## Quick Start
 
 ```bash
@@ -19,6 +35,17 @@ Build the CLI:
 ```bash
 npm run build
 ./dist/cli.js scan --dry-run
+```
+
+## Install
+
+From source:
+
+```bash
+npm install
+npm run build
+npm link
+opensecurity scan --dry-run
 ```
 
 ## Features
@@ -55,6 +82,15 @@ Common options:
 - `--sarif-output <path>`: write SARIF alongside primary output
 - `--concurrency <n>`: parallel scan workers
 - `--max-chars <n>`: max chars per chunk for AI scanning
+
+Example commands:
+
+```bash
+opensecurity scan --no-ai
+opensecurity scan --format sarif --sarif-output reports/opensecurity.sarif
+opensecurity scan --provider anthropic --model claude-sonnet-4-20250514
+opensecurity scan --dependency-only --simulate
+```
 
 ### `login`
 
@@ -158,6 +194,7 @@ Rule schema (simplified):
 - Do not commit secrets.
 - AI scanning sends code chunks to the configured API endpoint.
 - Use `--no-ai` if you want purely local scanning.
+- This tool provides best-effort findings and should be validated in your environment.
 
 ## Providers
 
@@ -180,6 +217,16 @@ API keys can be stored via `opensecurity login --mode api_key --provider <provid
 - `COHERE_API_KEY`
 
 When an API key is available, the model picker will try to fetch a live model list for the provider.
+
+## Contributing
+
+- Use `npm test` before submitting changes.
+- Follow existing TypeScript style and keep tests focused.
+- Do not add or log real secrets.
+
+## Roadmap
+
+See `ROADMAP.md` for planned work.
 
 ## Development
 
