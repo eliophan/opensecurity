@@ -556,37 +556,27 @@ function getProviderModelChoices(provider: Provider): string[] {
   switch (provider) {
     case "anthropic":
       return [
-        "claude-opus-4-6",
-        "claude-sonnet-4-6",
-        "claude-haiku-4-5-20251001"
+        "claude-opus-4-1-20250805",
+        "claude-sonnet-4-20250514"
       ];
     case "google":
       return [
         "gemini-2.5-pro",
         "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
         "gemini-flash-latest"
       ];
     case "mistral":
       return [
-        "mistral-large-latest",
-        "mistral-medium-latest",
-        "mistral-small-latest",
         "codestral-latest",
-        "devstral-latest",
         "devstral-small-latest",
-        "magistral-medium-latest",
-        "magistral-small-latest",
-        "ministral-14b-latest",
-        "ministral-8b-latest",
-        "ministral-3b-latest"
+        "devstral-medium-latest",
+        "mistral-medium-latest"
       ];
     case "xai":
       return [
         "grok-4-1-fast-reasoning",
         "grok-4-1-fast-non-reasoning",
-        "grok-4-fast-reasoning",
-        "grok-4-fast-non-reasoning"
+        "grok-code-fast-1"
       ];
     case "cohere":
       return [
