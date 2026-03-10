@@ -399,12 +399,10 @@ async function selectFromList<T extends string | undefined>(
   message: string,
   choices: Array<{ name: string; value: T }>
 ): Promise<T> {
-  if (process.stdout.isTTY && process.stdin.isTTY) {
-    try {
-      return await interactiveSelect(message, choices);
-    } catch {
-      // fall through to numeric prompt
-    }
+  try {
+    return await interactiveSelect(message, choices);
+  } catch {
+    // fall through to numeric prompt
   }
 
   const options = choices
@@ -424,20 +422,20 @@ async function interactiveSelect<T extends string | undefined>(
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const readline = require("node:readline");
-    readline.emitKeypressEvents(process.stdin);
-    const wasRaw = process.stdin.isRaw;
-    process.stdin.setRawMode(true);
+    const { input, output, cleanup: baseCleanup } = getInteractiveStreams();
+    readline.emitKeypressEvents(input);
+    input.setRawMode(true);
 
     let index = 0;
 
     const render = () => {
-      process.stdout.write("\x1b[2J\x1b[H");
-      process.stdout.write(`${message}\n`);
+      output.write("\x1b[2J\x1b[H");
+      output.write(`${message}\n`);
       for (let i = 0; i < choices.length; i += 1) {
         const prefix = i === index ? "●" : "○";
-        process.stdout.write(`${prefix} ${choices[i].name}\n`);
+        output.write(`${prefix} ${choices[i].name}\n`);
       }
-      process.stdout.write("\nUse ↑/↓ to move, Enter to select.\n");
+      output.write("\nUse ↑/↓ to move, Enter to select.\n");
     };
 
     const onKeypress = (_: string, key: { name?: string; ctrl?: boolean }) => {
@@ -464,12 +462,11 @@ async function interactiveSelect<T extends string | undefined>(
     };
 
     const cleanup = () => {
-      process.stdin.off("keypress", onKeypress as any);
-      if (!wasRaw) process.stdin.setRawMode(false);
-      process.stdout.write("\x1b[2J\x1b[H");
+      input.off("keypress", onKeypress as any);
+      baseCleanup();
     };
 
-    process.stdin.on("keypress", onKeypress as any);
+    input.on("keypress", onKeypress as any);
     render();
   });
 }
