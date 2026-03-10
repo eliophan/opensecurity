@@ -2,7 +2,7 @@ import readline from "node:readline";
 import http from "node:http";
 import crypto from "node:crypto";
 import { exec, spawn } from "node:child_process";
-import { loadGlobalConfig, saveGlobalConfig, type GlobalConfig } from "./config.js";
+import { loadGlobalConfig, saveGlobalConfig, type GlobalConfig, type Provider } from "./config.js";
 import { saveOAuthProfile } from "./oauthStore.js";
 
 export function askQuestion(question: string): Promise<string> {
@@ -28,43 +28,59 @@ type LoginMode = "oauth" | "api_key";
 export async function login(
   env = process.env,
   mode?: LoginMode,
-  model?: string
+  model?: string,
+  provider?: Provider
 ): Promise<GlobalConfig> {
   console.log("\n\x1b[32m\u25C7\x1b[0m  \x1b[1mOpenSecurity Authentication\x1b[0m");
   if (mode === "api_key") {
-    return loginWithApiKey(env, model);
+    return loginWithApiKey(env, model, provider);
   }
   if (mode === "oauth") {
+    if (provider && provider !== "openai") {
+      throw new Error("OAuth is only supported for OpenAI.");
+    }
     return loginWithOAuth(env, model);
   }
   const modeChoice = await promptLoginMode();
   if (modeChoice === "api_key") {
-    return loginWithApiKey(env, model);
+    return loginWithApiKey(env, model, provider);
   }
   // Option 1: Codex OAuth (Default)
   return loginWithOAuth(env, model);
 }
 
-async function loginWithApiKey(env = process.env, model?: string): Promise<GlobalConfig> {
-  const key = await askQuestion("Enter your OpenAI API Key (sk-...): ");
-  if (!key.startsWith("sk-")) {
+async function loginWithApiKey(
+  env = process.env,
+  model?: string,
+  provider?: Provider
+): Promise<GlobalConfig> {
+  const current = await loadGlobalConfig(env);
+  const selectedProvider = provider ?? (await chooseProvider(current.provider ?? "openai"));
+  const key = await askQuestion(`Enter your ${providerLabel(selectedProvider)} API Key: `);
+
+  if (selectedProvider === "openai" && !key.startsWith("sk-")) {
     console.error("\x1b[31mError: Invalid OpenAI API key format.\x1b[0m");
     process.exit(1);
   }
-  const current = await loadGlobalConfig(env);
+
   const selectedModel = await chooseModel({
     current: model ?? current.model,
-    source: "openai",
-    apiKey: key
+    provider: selectedProvider,
+    source: selectedProvider === "openai" ? "openai" : undefined,
+    apiKey: selectedProvider === "openai" ? key : undefined
   });
+
   const updated: GlobalConfig = {
     ...current,
-    apiKey: key,
+    provider: selectedProvider,
     authMode: "api_key",
-    model: selectedModel ?? current.model
+    model: selectedModel ?? current.model,
+    apiKey: selectedProvider === "openai" ? key : current.apiKey,
+    providerApiKey: selectedProvider === "openai" ? current.providerApiKey : key
   };
+
   await saveGlobalConfig(updated, env);
-  console.log("\n✅ Successfully saved OpenAI API Key.");
+  console.log(`\n✅ Successfully saved ${providerLabel(selectedProvider)} API Key.`);
   return updated;
 }
 
@@ -81,7 +97,8 @@ async function codexCliOAuthLogin(env = process.env, model?: string): Promise<Gl
   const current = await loadGlobalConfig(env);
   const selectedModel = await chooseModel({
     current: model ?? current.model,
-    source: "codex"
+    source: "codex",
+    provider: "openai"
   });
   const updated: GlobalConfig = {
     ...current,
@@ -182,7 +199,8 @@ async function codexOAuthLogin(env = process.env, model?: string, port = 1455): 
 
             const selectedModel = await chooseModel({
               current: model ?? current.model,
-              source: "codex"
+              source: "codex",
+              provider: "openai"
             });
             const updated: GlobalConfig = {
               ...current,
@@ -336,14 +354,17 @@ type ModelSource = "codex" | "openai";
 
 async function chooseModel(params: {
   current?: string;
-  source: ModelSource;
+  source?: ModelSource;
+  provider: Provider;
   apiKey?: string;
 }): Promise<string | undefined> {
-  const { current, source, apiKey } = params;
+  const { current, source, apiKey, provider } = params;
   const models =
-    source === "openai" && apiKey
+    provider === "openai" && source === "openai" && apiKey
       ? await fetchOpenAiModels(apiKey)
-      : getCodexModelChoices();
+      : provider === "openai" && source === "codex"
+        ? getCodexModelChoices()
+        : getProviderModelChoices(provider);
 
   return promptForModel({
     current,
@@ -388,10 +409,15 @@ async function promptForModel(params: {
   const { current, models } = params;
   const choices = [
     { name: `Keep current${current ? ` (${current})` : ""}`, value: undefined },
-    ...models.map((id) => ({ name: id, value: id }))
+    ...models.map((id) => ({ name: id, value: id })),
+    { name: "Custom model id…", value: "__custom__" as unknown as string }
   ];
 
   const selected = await selectFromList("Default model", choices);
+  if (selected === "__custom__") {
+    const custom = await askQuestion("Enter custom model id: ");
+    return custom.trim() || undefined;
+  }
   return selected;
 }
 
@@ -492,4 +518,88 @@ async function exchangeCodeForTokens(params: {
   }
 
   return res.json();
+}
+
+async function chooseProvider(current: Provider): Promise<Provider> {
+  const choices: Array<{ name: string; value: Provider }> = [
+    { name: "OpenAI", value: "openai" },
+    { name: "Anthropic", value: "anthropic" },
+    { name: "Google Gemini", value: "google" },
+    { name: "Mistral", value: "mistral" },
+    { name: "xAI", value: "xai" },
+    { name: "Cohere", value: "cohere" }
+  ];
+  const selected = await selectFromList(`Provider (current: ${current})`, choices);
+  return selected ?? current;
+}
+
+function providerLabel(provider: Provider): string {
+  switch (provider) {
+    case "openai":
+      return "OpenAI";
+    case "anthropic":
+      return "Anthropic";
+    case "google":
+      return "Google Gemini";
+    case "mistral":
+      return "Mistral";
+    case "xai":
+      return "xAI";
+    case "cohere":
+      return "Cohere";
+    default:
+      return "Provider";
+  }
+}
+
+function getProviderModelChoices(provider: Provider): string[] {
+  switch (provider) {
+    case "anthropic":
+      return [
+        "claude-opus-4-6",
+        "claude-sonnet-4-6",
+        "claude-haiku-4-5-20251001"
+      ];
+    case "google":
+      return [
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-flash-latest"
+      ];
+    case "mistral":
+      return [
+        "mistral-large-latest",
+        "mistral-medium-latest",
+        "mistral-small-latest",
+        "codestral-latest",
+        "devstral-latest",
+        "devstral-small-latest",
+        "magistral-medium-latest",
+        "magistral-small-latest",
+        "ministral-14b-latest",
+        "ministral-8b-latest",
+        "ministral-3b-latest"
+      ];
+    case "xai":
+      return [
+        "grok-4-1-fast-reasoning",
+        "grok-4-1-fast-non-reasoning",
+        "grok-4-fast-reasoning",
+        "grok-4-fast-non-reasoning"
+      ];
+    case "cohere":
+      return [
+        "command-a-03-2025",
+        "command-a-reasoning-08-2025"
+      ];
+    case "openai":
+    default:
+      return [
+        "gpt-5.2",
+        "gpt-5.1",
+        "gpt-4.1",
+        "gpt-4o-mini"
+      ];
+  }
 }

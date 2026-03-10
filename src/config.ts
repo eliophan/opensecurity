@@ -2,7 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 
+export type Provider = "openai" | "anthropic" | "google" | "mistral" | "xai" | "cohere";
+
 export type GlobalConfig = {
+  provider?: Provider;
   apiKey?: string;
   baseUrl?: string;
   model?: string;
@@ -10,6 +13,8 @@ export type GlobalConfig = {
   authMode?: "oauth" | "api_key";
   authProfileId?: string;
   oauthProvider?: "codex-cli" | "proxy";
+  providerApiKey?: string;
+  providerBaseUrl?: string;
 };
 
 export type ProjectConfig = {
@@ -33,10 +38,11 @@ export const DEFAULT_EXCLUDE = [
   "**/.opensecurity.json"
 ];
 
-const DEFAULT_GLOBALS: Required<Pick<GlobalConfig, "baseUrl" | "model" | "apiType">> = {
+const DEFAULT_GLOBALS: Required<Pick<GlobalConfig, "baseUrl" | "model" | "apiType" | "provider">> = {
   baseUrl: "https://api.openai.com/v1/responses",
   model: "gpt-4o-mini",
-  apiType: "responses"
+  apiType: "responses",
+  provider: "openai"
 };
 
 export function getConfigDir(env = process.env): string {

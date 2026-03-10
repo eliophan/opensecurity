@@ -21,10 +21,11 @@ program
   .command("login")
   .description("Store Codex Access Token in global config")
   .option("--mode <mode>", "oauth|api_key")
+  .option("--provider <provider>", "openai|anthropic|google|mistral|xai|cohere")
   .option("--model <model>", "set default model")
   .action(async (opts) => {
     try {
-      await login(process.env, opts.mode, opts.model);
+      await login(process.env, opts.mode, opts.model, opts.provider);
     } catch (err: any) {
       console.error(err?.message ?? err);
       process.exitCode = 1;
@@ -56,6 +57,7 @@ program
     }
     return value;
   })
+  .option("--provider <provider>", "openai|anthropic|google|mistral|xai|cohere")
   .option("--cwd <cwd>", "override working directory")
   .option("--include <pattern...>", "include glob patterns (overrides project config)")
   .option("--exclude <pattern...>", "exclude glob patterns (overrides project config)")
@@ -124,6 +126,7 @@ async function executeScan(opts: any) {
       maxChars: opts.maxChars,
       model: opts.model,
       authMode: opts.auth,
+      provider: opts.provider,
       liveOutput,
       onProgress: (info) => {
         const message = `Scanning ${info.file} (${info.fileIndex}/${info.totalFiles}) chunk ${info.chunkIndex}/${info.totalChunks}`;
