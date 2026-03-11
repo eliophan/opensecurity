@@ -5,7 +5,7 @@ OpenSecurity is an open-source CLI that scans entire repositories for security r
 At a high level, it uses multiple engines:
 
 - **JS/TS native AST + taint + patterns**
-- **Tree‑sitter native taint** for Python/Go/Java/C#/Ruby/PHP/Rust/Kotlin/Swift/C/C++
+- **Tree‑sitter native taint** for Python/Go/Java/C#/Ruby/PHP/Rust/Kotlin/Swift/C/C++ (context‑aware: scopes + sanitizers)
 - **External adapters** (Bandit, gosec, Brakeman, Semgrep) when installed
 - **Infra/config patterns** (Dockerfile, Kubernetes/Helm, Terraform, YAML)
 - **Dependency CVE scanning** for npm/PyPI
@@ -15,7 +15,7 @@ Universal patterns are heuristic (fast but shallow). Native AST/taint is a basel
 ## Scope
 
 - JS/TS native AST + taint + patterns
-- Tree‑sitter native taint for Python/Go/Java/C#/Ruby/PHP/Rust/Kotlin/Swift/C/C++
+- Tree‑sitter native taint for Python/Go/Java/C#/Ruby/PHP/Rust/Kotlin/Swift/C/C++ (scoped taint + sanitizer tracking)
 - Optional adapters: Bandit, gosec, Brakeman, Semgrep
 - Infra/config patterns: Dockerfile, Kubernetes/Helm YAML, Terraform, generic YAML
 - Dependency scanning: npm and PyPI manifests
@@ -73,8 +73,8 @@ If you only want local scanning, you can skip login and run `opensecurity scan -
 
 ## Features
 
-- AST taint engine with configurable sources/sinks/sanitizers.
-- OWASP-aligned default rules (injection, SSRF, path traversal, XSS templates, SQLi).
+- AST taint engine with configurable sources/sinks/sanitizers (JS/TS + native multi‑lang).
+- OWASP-aligned default rules (SQLi, command injection, SSRF, path traversal, template XSS, deserialization).
 - Pattern-based detectors (hardcoded secrets, insecure crypto, unsafe deserialization).
 - Optional external adapters for top languages (Bandit, gosec, Brakeman, Semgrep).
 - Dependency scanning for npm and PyPI (`package.json`, `package-lock.json`, `requirements.txt`).
@@ -102,7 +102,7 @@ If you only want local scanning, you can skip login and run `opensecurity scan -
 
 5. **Native AST/taint (Tree‑sitter)**
    - Loads Tree‑sitter parsers (WASM default, native optional).
-   - Runs taint rules per language for core injection/path/SSRF/deserialization/XSS.
+   - Runs taint rules per language for injection/path/SSRF/deserialization/XSS with scoped taint + sanitizer tracking.
 
 6. **External language adapters**
    - Runs optional tool adapters when installed (Bandit, gosec, Brakeman, Semgrep).
