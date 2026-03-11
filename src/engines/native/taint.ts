@@ -162,6 +162,8 @@ export function runNativeTaint(
   const findings: NativeFinding[] = [];
   const taintedVarsStack: Array<Set<string>> = [new Set()];
   const taintedExpressions = new WeakSet<TNode>();
+  const sanitizedVarsStack: Array<Set<string>> = [new Set()];
+  const sanitizedExpressions = new WeakSet<TNode>();
 
   const pushScope = () => taintedVarsStack.push(new Set());
   const popScope = () => taintedVarsStack.pop();
@@ -169,8 +171,36 @@ export function runNativeTaint(
   const taint = (name: string) => currentScope()?.add(name);
   const untaint = (name: string) => currentScope()?.delete(name);
   const isTainted = (name: string) => currentScope()?.has(name) ?? false;
+  const pushSanitizedScope = () => sanitizedVarsStack.push(new Set());
+  const popSanitizedScope = () => sanitizedVarsStack.pop();
+  const currentSanitizedScope = () => sanitizedVarsStack[sanitizedVarsStack.length - 1];
+  const sanitize = (name: string) => currentSanitizedScope()?.add(name);
+  const unsanitize = (name: string) => currentSanitizedScope()?.delete(name);
+  const isSanitized = (name: string) => currentSanitizedScope()?.has(name) ?? false;
+
+  const valueIsSanitized = (node: TNode, rule: NativeRule): boolean => {
+    if (sanitizedExpressions.has(node)) return true;
+    const nodeNames = getNodeNames(node, lang, source);
+    const primaryName = nodeNames[0];
+    if (lang.identifierNodes.includes(node.type) && primaryName) {
+      return isSanitized(primaryName);
+    }
+    if (lang.memberNodes.includes(node.type) && primaryName) {
+      return isSanitized(primaryName);
+    }
+    if (lang.callNodes.includes(node.type)) {
+      const calleeNames = getCallNames(node, lang, source);
+      if (calleeNames.length && rule.sanitizers?.some((san) => matchesAnyCallee(calleeNames, san.matcher))) {
+        sanitizedExpressions.add(node);
+        return true;
+      }
+    }
+    const children = node.namedChildren ?? [];
+    return children.some((child) => valueIsSanitized(normalizeTraverseNode(child), rule));
+  };
 
   const valueIsTainted = (node: TNode, rule: NativeRule): boolean => {
+    if (valueIsSanitized(node, rule)) return false;
     if (taintedExpressions.has(node)) return true;
     const nodeNames = getNodeNames(node, lang, source);
     if (nodeNames.length && rule.sources?.some((src) => matchesAnyCallee(nodeNames, src.matcher))) {
@@ -186,7 +216,10 @@ export function runNativeTaint(
     if (lang.callNodes.includes(node.type)) {
       const calleeNames = getCallNames(node, lang, source);
       if (calleeNames.length) {
-        if (rule.sanitizers?.some((san) => matchesAnyCallee(calleeNames, san.matcher))) return false;
+        if (rule.sanitizers?.some((san) => matchesAnyCallee(calleeNames, san.matcher))) {
+          sanitizedExpressions.add(node);
+          return false;
+        }
         if (rule.sources?.some((src) => matchesAnyCallee(calleeNames, src.matcher))) return true;
       }
     }
@@ -198,13 +231,19 @@ export function runNativeTaint(
     const { left, right } = getAssignmentSides(node, lang);
     if (!left || !right) return;
     const targetNames = findIdentifiers(left, lang, source);
+    const sanitized = valueIsSanitized(right, rule);
     const tainted = valueIsTainted(right, rule);
     for (const name of targetNames) {
-      if (tainted) {
+      if (sanitized) {
+        untaint(name);
+        sanitize(name);
+      } else if (tainted) {
         taint(name);
         taintedExpressions.add(right);
+        unsanitize(name);
       } else {
         untaint(name);
+        unsanitize(name);
       }
     }
   };
@@ -277,6 +316,8 @@ export function runNativeTaint(
   for (const rule of ruleSet.rules) {
     taintedVarsStack.length = 0;
     taintedVarsStack.push(new Set());
+    sanitizedVarsStack.length = 0;
+    sanitizedVarsStack.push(new Set());
     runRule(rule);
   }
 
