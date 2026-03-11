@@ -37,12 +37,16 @@ function buildSimpleTree(lang: LanguageConfig, source: string, sourceCallee: str
     throw new Error(`fixture missing callee: ${sourceCallee} or ${sinkCallee}`);
   }
   const srcIdent = node("identifier", srcStart, srcStart + sourceCallee.length);
+  const srcArgs = node("arguments", srcStart + sourceCallee.length, srcStart + sourceCallee.length + 2, {}, []);
   const srcCall = node(
     lang.callNodes[0] ?? "call",
     srcStart,
     srcStart + `${sourceCallee}()`.length,
-    { [lang.callCalleeFields[0] ?? "function"]: srcIdent },
-    [srcIdent]
+    {
+      [lang.callCalleeFields[0] ?? "function"]: srcIdent,
+      [lang.callArgumentFields[0] ?? "arguments"]: srcArgs
+    },
+    [srcIdent, srcArgs]
   );
 
   const leftIdent = node("identifier", 0, 1);
@@ -56,12 +60,22 @@ function buildSimpleTree(lang: LanguageConfig, source: string, sourceCallee: str
 
   const sinkIdent = node("identifier", sinkStart, sinkStart + sinkCallee.length);
   const argIdent = node("identifier", sinkStart + sinkCallee.length + 1, sinkStart + sinkCallee.length + 2);
+  const sinkArgs = node(
+    "arguments",
+    sinkStart + sinkCallee.length,
+    sinkStart + sinkCallee.length + 3,
+    {},
+    [argIdent]
+  );
   const sinkCall = node(
     lang.callNodes[0] ?? "call",
     sinkStart,
     sinkStart + sinkCallee.length + 3,
-    { [lang.callCalleeFields[0] ?? "function"]: sinkIdent },
-    [argIdent]
+    {
+      [lang.callCalleeFields[0] ?? "function"]: sinkIdent,
+      [lang.callArgumentFields[0] ?? "arguments"]: sinkArgs
+    },
+    [argIdent, sinkArgs]
   );
 
   return node("root", 0, source.length, {}, [assign, sinkCall]);
