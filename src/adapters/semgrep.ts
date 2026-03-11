@@ -54,7 +54,7 @@ export const semgrepAdapter: Adapter = {
       description: item.extra?.message ?? "Semgrep issue detected.",
       file: normalizePath(item.path ?? "", cwd),
       line: item.start?.line ? Number(item.start.line) : undefined,
-      column: item.start?.col ? Number(item.start.col) : undefined,
+      column: item.start?.col ? Number(item.start.col) + 1 : undefined,
       category: "code"
     }));
   }
