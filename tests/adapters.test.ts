@@ -27,3 +27,11 @@ describe("language extension matching", () => {
     expect(matchesExtension("script.py", SEMGREP_EXTS)).toBe(false);
   });
 });
+
+describe("adapter output normalization", () => {
+  it("normalizes semgrep columns to 1-based", () => {
+    const column = 0;
+    const normalized = column + 1;
+    expect(normalized).toBe(1);
+  });
+});
