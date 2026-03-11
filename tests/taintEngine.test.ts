@@ -56,4 +56,25 @@ describe("taint analysis", () => {
     const findings = runTaintAnalysis(parsed.ast, parsed.filePath, rules);
     expect(findings.length).toBe(1);
   });
+
+  it("treats sanitizer result as safe across assignments", () => {
+    const code = `
+      const input = getUserInput();
+      const safe = sanitize(input);
+      const safe2 = safe;
+      eval(safe2);
+    `;
+    const parsed = parseSource(code, "test.ts");
+    const findings = runTaintAnalysis(parsed.ast, parsed.filePath, RULES);
+    expect(findings.length).toBe(0);
+  });
+
+  it("treats inline sanitizer call as safe", () => {
+    const code = `
+      eval(sanitize(getUserInput()));
+    `;
+    const parsed = parseSource(code, "test.ts");
+    const findings = runTaintAnalysis(parsed.ast, parsed.filePath, RULES);
+    expect(findings.length).toBe(0);
+  });
 });
