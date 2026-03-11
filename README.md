@@ -304,6 +304,7 @@ Global config: `~/.config/opensecurity/config.json`
 ## Rules
 
 Default rules are in `src/engines/rules/defaultRules.ts`.
+Taint rule coverage by language: `docs/coverage-matrix.md`.
 You can override with a JSON file (`--rules` or `rulesPath`).
 
 Pattern-based detectors run alongside rules (hardcoded secrets, insecure crypto, unsafe deserialization).
