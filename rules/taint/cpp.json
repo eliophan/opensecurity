@@ -8,7 +8,9 @@
       "owasp": "A03:2021 Injection",
       "kind": "taint",
       "sources": [
-        { "id": "argv", "name": "argv", "matcher": { "calleePattern": ["argv", "getenv"] } }
+        { "id": "getenv", "name": "getenv", "matcher": { "callee": ["getenv"] } },
+        { "id": "scanf", "name": "scanf", "matcher": { "calleePattern": ["scanf", "fscanf", "sscanf"] } },
+        { "id": "gets", "name": "gets", "matcher": { "callee": ["gets", "fgets"] } }
       ],
       "sinks": [
         { "id": "system", "name": "system", "matcher": { "callee": ["system", "popen"] } }
@@ -21,7 +23,9 @@
       "owasp": "A01:2021 Broken Access Control",
       "kind": "taint",
       "sources": [
-        { "id": "argv", "name": "argv", "matcher": { "calleePattern": ["argv", "getenv"] } }
+        { "id": "getenv", "name": "getenv", "matcher": { "callee": ["getenv"] } },
+        { "id": "scanf", "name": "scanf", "matcher": { "calleePattern": ["scanf", "fscanf", "sscanf"] } },
+        { "id": "gets", "name": "gets", "matcher": { "callee": ["gets", "fgets"] } }
       ],
       "sinks": [
         { "id": "fstream", "name": "fstream", "matcher": { "calleePattern": ["std::fstream", "std::ifstream", "std::ofstream", "fopen", "open"] } }
@@ -34,7 +38,9 @@
       "owasp": "A03:2021 Injection",
       "kind": "taint",
       "sources": [
-        { "id": "argv", "name": "argv", "matcher": { "calleePattern": ["argv", "getenv"] } }
+        { "id": "getenv", "name": "getenv", "matcher": { "callee": ["getenv"] } },
+        { "id": "scanf", "name": "scanf", "matcher": { "calleePattern": ["scanf", "fscanf", "sscanf"] } },
+        { "id": "gets", "name": "gets", "matcher": { "callee": ["gets", "fgets"] } }
       ],
       "sinks": [
         { "id": "sqlite", "name": "sqlite3_exec", "matcher": { "callee": ["sqlite3_exec"] } },
@@ -49,10 +55,12 @@
       "owasp": "A10:2021 Server-Side Request Forgery",
       "kind": "taint",
       "sources": [
-        { "id": "argv", "name": "argv", "matcher": { "calleePattern": ["argv", "getenv"] } }
+        { "id": "getenv", "name": "getenv", "matcher": { "callee": ["getenv"] } },
+        { "id": "scanf", "name": "scanf", "matcher": { "calleePattern": ["scanf", "fscanf", "sscanf"] } },
+        { "id": "gets", "name": "gets", "matcher": { "callee": ["gets", "fgets"] } }
       ],
       "sinks": [
-        { "id": "curl", "name": "curl_easy_perform", "matcher": { "callee": ["curl_easy_perform", "curl_easy_setopt"] } }
+        { "id": "curl", "name": "curl_easy_perform", "matcher": { "callee": ["curl_easy_perform"] } }
       ]
     },
     {

@@ -64,9 +64,9 @@
       ],
       "sinks": [
         { "id": "serde-json", "name": "serde_json::from_str", "matcher": { "calleePattern": ["serde_json::from_str", "serde_json::from_slice"] } },
-        { "id": "serde-yaml", "name": "serde_yaml::from_str", "matcher": { "calleePattern": ["serde_yaml::from_str"] } },
-        { "id": "bincode", "name": "bincode::deserialize", "matcher": { "calleePattern": ["bincode::deserialize"] } },
-        { "id": "rmp", "name": "rmp_serde::from_slice", "matcher": { "calleePattern": ["rmp_serde::from_slice"] } }
+        { "id": "serde-yaml", "name": "serde_yaml::from_str", "matcher": { "calleePattern": ["serde_yaml::from_str", "serde_yaml::from_slice"] } },
+        { "id": "bincode", "name": "bincode::deserialize", "matcher": { "calleePattern": ["bincode::deserialize", "bincode::deserialize_from"] } },
+        { "id": "rmp", "name": "rmp_serde::from_slice", "matcher": { "calleePattern": ["rmp_serde::from_slice", "rmp_serde::from_read"] } }
       ]
     },
     {

@@ -66,7 +66,7 @@
         { "id": "json", "name": "json.Unmarshal", "matcher": { "calleePattern": ["json.Unmarshal"] } },
         { "id": "xml", "name": "xml.Unmarshal", "matcher": { "calleePattern": ["xml.Unmarshal"] } },
         { "id": "yaml", "name": "yaml.Unmarshal", "matcher": { "calleePattern": ["yaml.Unmarshal"] } },
-        { "id": "gob", "name": "gob.Decoder.Decode", "matcher": { "calleePattern": ["*.Decode"] } }
+        { "id": "gob", "name": "gob.Decoder.Decode", "matcher": { "calleePattern": ["gob.Decoder.Decode"] } }
       ]
     },
     {

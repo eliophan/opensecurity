@@ -63,7 +63,9 @@
         { "id": "param", "name": "request.query", "matcher": { "calleePattern": ["request.query*", "request.form*"] } }
       ],
       "sinks": [
-        { "id": "nskeyed", "name": "NSKeyedUnarchiver", "matcher": { "calleePattern": ["NSKeyedUnarchiver.unarchiveTopLevelObjectWithData", "NSKeyedUnarchiver.unarchiveObject"] } }
+        { "id": "nskeyed", "name": "NSKeyedUnarchiver", "matcher": { "calleePattern": ["NSKeyedUnarchiver.unarchiveTopLevelObjectWithData", "NSKeyedUnarchiver.unarchiveObject"] } },
+        { "id": "plist", "name": "PropertyListSerialization", "matcher": { "calleePattern": ["PropertyListSerialization.propertyList"] } },
+        { "id": "json", "name": "JSONSerialization", "matcher": { "calleePattern": ["JSONSerialization.jsonObject"] } }
       ]
     },
     {
