@@ -46,12 +46,20 @@ export function runPatternDetectors(ast: File, filePath: string): PatternFinding
   const traverse = normalizeTraverse(traverseImport);
   const findings: PatternFinding[] = [];
 
+  const toLoc = (node: t.Node) => {
+    const loc = node.loc?.start;
+    return {
+      line: loc?.line,
+      column: typeof loc?.column === "number" ? loc.column + 1 : undefined
+    };
+  };
+
   const pushFinding = (finding: PatternFinding) => {
     findings.push(finding);
   };
 
   const markSecret = (node: t.Node, title: string, description: string, id = "hardcoded-secret") => {
-    const loc = node.loc?.start;
+    const loc = toLoc(node);
     pushFinding({
       id,
       severity: "high",
@@ -59,13 +67,13 @@ export function runPatternDetectors(ast: File, filePath: string): PatternFinding
       title,
       description,
       file: filePath,
-      line: loc?.line,
-      column: typeof loc?.column === "number" ? loc.column + 1 : undefined
+      line: loc.line,
+      column: loc.column
     });
   };
 
   const markCrypto = (node: t.Node, title: string, description: string, id = "insecure-crypto") => {
-    const loc = node.loc?.start;
+    const loc = toLoc(node);
     pushFinding({
       id,
       severity: "high",
@@ -73,13 +81,13 @@ export function runPatternDetectors(ast: File, filePath: string): PatternFinding
       title,
       description,
       file: filePath,
-      line: loc?.line,
-      column: typeof loc?.column === "number" ? loc.column + 1 : undefined
+      line: loc.line,
+      column: loc.column
     });
   };
 
   const markDeserialize = (node: t.Node, title: string, description: string, id = "unsafe-deserialization") => {
-    const loc = node.loc?.start;
+    const loc = toLoc(node);
     pushFinding({
       id,
       severity: "high",
@@ -87,8 +95,8 @@ export function runPatternDetectors(ast: File, filePath: string): PatternFinding
       title,
       description,
       file: filePath,
-      line: loc?.line,
-      column: typeof loc?.column === "number" ? loc.column + 1 : undefined
+      line: loc.line,
+      column: loc.column
     });
   };
 
