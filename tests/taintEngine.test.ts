@@ -20,6 +20,15 @@ describe("taint analysis", () => {
     expect(findings[0].sinkId).toBe("sink-eval");
   });
 
+  it("reports 1-based line and column for sinks", () => {
+    const code = "eval(getUserInput());\n";
+    const parsed = parseSource(code, "test.ts");
+    const findings = runTaintAnalysis(parsed.ast, parsed.filePath, RULES);
+    expect(findings.length).toBe(1);
+    expect(findings[0].line).toBe(1);
+    expect(findings[0].column).toBe(1);
+  });
+
   it("does not flag sanitized flow", () => {
     const code = `
       const input = getUserInput();
