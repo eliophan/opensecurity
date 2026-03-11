@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { runNativeTaint } from "../src/engines/native/taint.js";
-import { loadNativeRules } from "../src/engines/native/rules.js";
 import type { LanguageConfig } from "../src/engines/native/languages.js";
 
 type FakeNode = {
@@ -89,8 +88,11 @@ describe("native taint smoke", () => {
     expect(ruleFiles.length).toBeGreaterThan(0);
 
     for (const file of ruleFiles) {
-      const ruleSet = loadNativeRules(path.join(rulesDir, file));
-      const langId = ruleSet.language;
+      const ruleSet = JSON.parse(fs.readFileSync(path.join(rulesDir, file), "utf8")) as {
+        language: string;
+        rules: unknown[];
+      };
+      const langId = ruleSet.language as LanguageConfig["id"];
       const fixture = FIXTURE_SOURCES[langId];
       expect(fixture, `missing fixture for ${langId}`).toBeTruthy();
       const lang: LanguageConfig = {
@@ -114,7 +116,7 @@ describe("native taint smoke", () => {
       };
 
       const tree = buildSimpleTree(lang, fixture.source, fixture.sourceCallee, fixture.sinkCallee);
-      const findings = runNativeTaint({ rootNode: tree }, fixture.source, lang, ruleSet, "sample.t");
+      const findings = runNativeTaint({ rootNode: tree }, fixture.source, lang, ruleSet as any, "sample.t");
       expect(findings.length).toBeGreaterThan(0);
     }
   });
