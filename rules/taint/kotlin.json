@@ -54,6 +54,20 @@
       ]
     },
     {
+      "id": "kt-deser",
+      "title": "Unsafe Deserialization",
+      "severity": "high",
+      "owasp": "A08:2021 Software and Data Integrity Failures",
+      "kind": "taint",
+      "sources": [
+        { "id": "param", "name": "request.getParameter", "matcher": { "calleePattern": ["*.getParameter", "*.getHeader"] } }
+      ],
+      "sinks": [
+        { "id": "java-io", "name": "ObjectInputStream.readObject", "matcher": { "calleePattern": ["ObjectInputStream.readObject", "*.readObject"] } },
+        { "id": "jackson", "name": "ObjectMapper.readValue", "matcher": { "calleePattern": ["ObjectMapper.readValue", "*.readValue"] } }
+      ]
+    },
+    {
       "id": "kt-xss-template",
       "title": "Server Template XSS",
       "severity": "medium",

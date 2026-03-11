@@ -23,6 +23,7 @@ const REQUIRED_BY_LANGUAGE: Record<string, string[]> = {
     "Command Injection",
     "Path Traversal",
     "Server-Side Request Forgery",
+    "Unsafe Deserialization",
     "Server Template XSS",
     "Weak Crypto",
     "Hardcoded Secret"
@@ -72,6 +73,7 @@ const REQUIRED_BY_LANGUAGE: Record<string, string[]> = {
     "Command Injection",
     "Path Traversal",
     "Server-Side Request Forgery",
+    "Unsafe Deserialization",
     "Server Template XSS",
     "Weak Crypto",
     "Hardcoded Secret"
@@ -81,6 +83,7 @@ const REQUIRED_BY_LANGUAGE: Record<string, string[]> = {
     "Command Injection",
     "Path Traversal",
     "Server-Side Request Forgery",
+    "Unsafe Deserialization",
     "Server Template XSS",
     "Weak Crypto",
     "Hardcoded Secret"
@@ -90,12 +93,27 @@ const REQUIRED_BY_LANGUAGE: Record<string, string[]> = {
     "Command Injection",
     "Path Traversal",
     "Server-Side Request Forgery",
+    "Unsafe Deserialization",
     "Server Template XSS",
     "Weak Crypto",
     "Hardcoded Secret"
   ],
-  c: ["Command Injection", "Path Traversal", "Weak Crypto", "Hardcoded Secret"],
-  cpp: ["Command Injection", "Path Traversal", "Weak Crypto", "Hardcoded Secret"]
+  c: [
+    "SQL Injection",
+    "Command Injection",
+    "Path Traversal",
+    "Server-Side Request Forgery",
+    "Weak Crypto",
+    "Hardcoded Secret"
+  ],
+  cpp: [
+    "SQL Injection",
+    "Command Injection",
+    "Path Traversal",
+    "Server-Side Request Forgery",
+    "Weak Crypto",
+    "Hardcoded Secret"
+  ]
 };
 
 function loadRuleFile(filePath: string): RuleFile {

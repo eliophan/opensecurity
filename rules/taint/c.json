@@ -28,6 +28,34 @@
       ]
     },
     {
+      "id": "c-sqli",
+      "title": "SQL Injection",
+      "severity": "high",
+      "owasp": "A03:2021 Injection",
+      "kind": "taint",
+      "sources": [
+        { "id": "argv", "name": "argv", "matcher": { "calleePattern": ["argv", "getenv"] } }
+      ],
+      "sinks": [
+        { "id": "sqlite", "name": "sqlite3_exec", "matcher": { "callee": ["sqlite3_exec"] } },
+        { "id": "mysql", "name": "mysql_query", "matcher": { "callee": ["mysql_query"] } },
+        { "id": "pq", "name": "PQexec", "matcher": { "callee": ["PQexec"] } }
+      ]
+    },
+    {
+      "id": "c-ssrf",
+      "title": "Server-Side Request Forgery",
+      "severity": "high",
+      "owasp": "A10:2021 Server-Side Request Forgery",
+      "kind": "taint",
+      "sources": [
+        { "id": "argv", "name": "argv", "matcher": { "calleePattern": ["argv", "getenv"] } }
+      ],
+      "sinks": [
+        { "id": "curl", "name": "curl_easy_perform", "matcher": { "callee": ["curl_easy_perform", "curl_easy_setopt"] } }
+      ]
+    },
+    {
       "id": "c-weak-crypto",
       "title": "Weak Crypto",
       "severity": "medium",

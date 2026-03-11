@@ -54,6 +54,22 @@
       ]
     },
     {
+      "id": "go-deser",
+      "title": "Unsafe Deserialization",
+      "severity": "high",
+      "owasp": "A08:2021 Software and Data Integrity Failures",
+      "kind": "taint",
+      "sources": [
+        { "id": "query", "name": "r.URL.Query", "matcher": { "calleePattern": ["*.Query", "*.Query().Get", "*.FormValue"] } }
+      ],
+      "sinks": [
+        { "id": "json", "name": "json.Unmarshal", "matcher": { "calleePattern": ["json.Unmarshal"] } },
+        { "id": "xml", "name": "xml.Unmarshal", "matcher": { "calleePattern": ["xml.Unmarshal"] } },
+        { "id": "yaml", "name": "yaml.Unmarshal", "matcher": { "calleePattern": ["yaml.Unmarshal"] } },
+        { "id": "gob", "name": "gob.Decoder.Decode", "matcher": { "calleePattern": ["*.Decode"] } }
+      ]
+    },
+    {
       "id": "go-xss-template",
       "title": "Server Template XSS",
       "severity": "medium",

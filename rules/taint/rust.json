@@ -54,6 +54,22 @@
       ]
     },
     {
+      "id": "rs-deser",
+      "title": "Unsafe Deserialization",
+      "severity": "high",
+      "owasp": "A08:2021 Software and Data Integrity Failures",
+      "kind": "taint",
+      "sources": [
+        { "id": "query", "name": "web::Query", "matcher": { "calleePattern": ["Query::*", "Form::*"] } }
+      ],
+      "sinks": [
+        { "id": "serde-json", "name": "serde_json::from_str", "matcher": { "calleePattern": ["serde_json::from_str", "serde_json::from_slice"] } },
+        { "id": "serde-yaml", "name": "serde_yaml::from_str", "matcher": { "calleePattern": ["serde_yaml::from_str"] } },
+        { "id": "bincode", "name": "bincode::deserialize", "matcher": { "calleePattern": ["bincode::deserialize"] } },
+        { "id": "rmp", "name": "rmp_serde::from_slice", "matcher": { "calleePattern": ["rmp_serde::from_slice"] } }
+      ]
+    },
+    {
       "id": "rs-xss-template",
       "title": "Server Template XSS",
       "severity": "medium",

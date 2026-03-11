@@ -54,6 +54,19 @@
       ]
     },
     {
+      "id": "swift-deser",
+      "title": "Unsafe Deserialization",
+      "severity": "high",
+      "owasp": "A08:2021 Software and Data Integrity Failures",
+      "kind": "taint",
+      "sources": [
+        { "id": "param", "name": "request.query", "matcher": { "calleePattern": ["request.query*", "request.form*"] } }
+      ],
+      "sinks": [
+        { "id": "nskeyed", "name": "NSKeyedUnarchiver", "matcher": { "calleePattern": ["NSKeyedUnarchiver.unarchiveTopLevelObjectWithData", "NSKeyedUnarchiver.unarchiveObject"] } }
+      ]
+    },
+    {
       "id": "swift-xss-template",
       "title": "Server Template XSS",
       "severity": "medium",
