@@ -84,7 +84,7 @@ export function buildFunctionMap(ast: File, filePath: string): FunctionMap {
       | ClassMethod,
     kind: FunctionInfo["kind"]
   ) => {
-    const loc = node.loc?.start ? { line: node.loc.start.line, column: node.loc.start.column } : undefined;
+    const loc = toLoc(node);
     const params = node.params.map((param) => (t.isIdentifier(param) ? param.name : "<pattern>"));
     const id = `${filePath}:${name}:${loc?.line ?? 0}`;
     map.set(id, {
@@ -240,7 +240,7 @@ export function buildDataFlowGraph(ast: File, filePath: string): DataFlowGraph {
   const currentScope = () => scopes[scopes.length - 1];
 
   const recordDef = (name: string, node: t.Node) => {
-    const loc = node.loc?.start ? { line: node.loc.start.line, column: node.loc.start.column } : undefined;
+    const loc = toLoc(node);
     const dataNode: DataFlowNode = {
       id: `${filePath}:${name}:${loc?.line ?? 0}:${loc?.column ?? 0}`,
       name,
@@ -252,7 +252,7 @@ export function buildDataFlowGraph(ast: File, filePath: string): DataFlowGraph {
   };
 
   const recordUse = (name: string, node: t.Node) => {
-    const loc = node.loc?.start ? { line: node.loc.start.line, column: node.loc.start.column } : undefined;
+    const loc = toLoc(node);
     const useNode: DataFlowNode = {
       id: `${filePath}:${name}:${loc?.line ?? 0}:${loc?.column ?? 0}:use`,
       name,
@@ -316,6 +316,11 @@ function getCalleeName(node: CallExpression): string | null {
   if (t.isIdentifier(callee)) return callee.name;
   if (t.isMemberExpression(callee)) return memberExpressionToString(callee);
   return null;
+}
+
+function toLoc(node: t.Node): { line: number; column: number } | undefined {
+  if (!node.loc?.start) return undefined;
+  return { line: node.loc.start.line, column: node.loc.start.column + 1 };
 }
 
 function memberExpressionToString(node: MemberExpression): string | null {
