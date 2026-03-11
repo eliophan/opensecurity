@@ -41,4 +41,19 @@ describe("taint analysis", () => {
     const findings = runTaintAnalysis(parsed.ast, parsed.filePath, RULES);
     expect(findings.length).toBe(1);
   });
+
+  it("matches deep member access and suffix names", () => {
+    const code = `
+      const input = request.args.get("id");
+      db.execute(input);
+    `;
+    const parsed = parseSource(code, "test.ts");
+    const rules = {
+      sources: [{ id: "src", name: "request.args.get", matcher: { callee: "request.args.get" } }],
+      sinks: [{ id: "sink", name: "execute", matcher: { callee: "execute" } }],
+      sanitizers: []
+    };
+    const findings = runTaintAnalysis(parsed.ast, parsed.filePath, rules);
+    expect(findings.length).toBe(1);
+  });
 });
