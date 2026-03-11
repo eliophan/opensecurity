@@ -1,0 +1,108 @@
+{
+  "python": {
+    "SQL Injection": ["cursor.execute(\"SELECT * FROM users WHERE id = \" + request.args.get(\"id\"))"],
+    "Command Injection": ["os.system(request.args.get(\"cmd\"))"],
+    "Path Traversal": ["open(request.args.get(\"file\"))"],
+    "Server-Side Request Forgery": ["requests.get(request.args.get(\"url\"))"],
+    "Unsafe Deserialization": ["pickle.loads(request.args.get(\"data\"))"],
+    "Server Template XSS": ["render_template(\"user.html\", name=request.args.get(\"name\"))"],
+    "Weak Crypto": ["hashlib.md5(password.encode())"],
+    "Hardcoded Secret": ["API_KEY = \"sk_test_12345678\""]
+  },
+  "go": {
+    "SQL Injection": ["db.Exec(\"SELECT * FROM users WHERE id=\" + r.FormValue(\"id\"))"],
+    "Command Injection": ["exec.Command(r.FormValue(\"cmd\")).Run()"],
+    "Path Traversal": ["os.ReadFile(r.FormValue(\"file\"))"],
+    "Server-Side Request Forgery": ["http.Get(r.FormValue(\"url\"))"],
+    "Unsafe Deserialization": ["json.Unmarshal([]byte(r.FormValue(\"data\")), &obj)"],
+    "Server Template XSS": ["tmpl.Execute(w, r.FormValue(\"name\"))"],
+    "Weak Crypto": ["md5.Sum([]byte(password))"],
+    "Hardcoded Secret": ["token := \"tok_abcdef123456\""]
+  },
+  "java": {
+    "SQL Injection": ["stmt.execute(\"SELECT * FROM users WHERE id=\" + request.getParameter(\"id\"))"],
+    "Command Injection": ["Runtime.getRuntime().exec(request.getParameter(\"cmd\"))"],
+    "Path Traversal": ["Files.readAllBytes(Paths.get(request.getParameter(\"file\")))"],
+    "Server-Side Request Forgery": ["new URL(request.getParameter(\"url\")).openConnection()"],
+    "Unsafe Deserialization": ["new ObjectInputStream(in).readObject()"],
+    "Server Template XSS": ["template.render(request.getParameter(\"name\"))"],
+    "Weak Crypto": ["MessageDigest.getInstance(\"MD5\")"],
+    "Hardcoded Secret": ["String apiKey = \"sk_live_abcdef123456\";"]
+  },
+  "csharp": {
+    "SQL Injection": ["command.Execute(\"SELECT * FROM users WHERE id=\" + Request.QueryString[\"id\"])"],
+    "Command Injection": ["Process.Start(Request.QueryString[\"cmd\"])"],
+    "Path Traversal": ["File.ReadAllText(Request.QueryString[\"file\"])"],
+    "Server-Side Request Forgery": ["new WebClient().DownloadString(Request.QueryString[\"url\"])"],
+    "Unsafe Deserialization": ["new BinaryFormatter().Deserialize(stream)"],
+    "Server Template XSS": ["renderer.Render(Request.QueryString[\"name\"])"],
+    "Weak Crypto": ["MD5.Create()"],
+    "Hardcoded Secret": ["var token = \"token_abcdef123456\";"]
+  },
+  "ruby": {
+    "SQL Injection": ["ActiveRecord::Base.connection.execute(\"SELECT * FROM users WHERE id=\" + params[:id])"],
+    "Command Injection": ["system(params[:cmd])"],
+    "Path Traversal": ["File.read(params[:file])"],
+    "Server-Side Request Forgery": ["Net::HTTP.get(URI(params[:url]))"],
+    "Unsafe Deserialization": ["YAML.load(params[:data])"],
+    "Server Template XSS": ["render(params[:name])"],
+    "Weak Crypto": ["Digest::MD5.hexdigest(password)"],
+    "Hardcoded Secret": ["API_KEY = \"rk_test_abcdef123456\""]
+  },
+  "php": {
+    "SQL Injection": ["$db->execute(\"SELECT * FROM users WHERE id=\".$_GET[\"id\"])"],
+    "Command Injection": ["system($_GET[\"cmd\"])"],
+    "Path Traversal": ["file_get_contents($_GET[\"file\"])"],
+    "Server-Side Request Forgery": ["file_get_contents($_GET[\"url\"])"],
+    "Unsafe Deserialization": ["unserialize($_GET[\"data\"])"],
+    "Server Template XSS": ["render($_GET[\"name\"])"],
+    "Weak Crypto": ["md5($password)"],
+    "Hardcoded Secret": ["$token = \"tok_abcdef123456\";"]
+  },
+  "rust": {
+    "SQL Injection": ["sqlx::query(\"SELECT * FROM users WHERE id=\".to_string() + input)"],
+    "Command Injection": ["Command::new(input).spawn().unwrap()"],
+    "Path Traversal": ["std::fs::read_to_string(input).unwrap()"],
+    "Server-Side Request Forgery": ["reqwest::get(input).await.unwrap()"],
+    "Unsafe Deserialization": ["serde_json::from_str(input).unwrap()"],
+    "Server Template XSS": ["template.render(input)"],
+    "Weak Crypto": ["md5::compute(data)"],
+    "Hardcoded Secret": ["let api_key = \"sk_live_abcdef123456\";"]
+  },
+  "kotlin": {
+    "SQL Injection": ["stmt.execute(\"SELECT * FROM users WHERE id=\" + request.getParameter(\"id\"))"],
+    "Command Injection": ["Runtime.getRuntime().exec(request.getParameter(\"cmd\"))"],
+    "Path Traversal": ["Files.readString(Paths.get(request.getParameter(\"file\")))"],
+    "Server-Side Request Forgery": ["URL(request.getParameter(\"url\")).openConnection()"],
+    "Unsafe Deserialization": ["ObjectInputStream(input).readObject()"],
+    "Server Template XSS": ["render(request.getParameter(\"name\"))"],
+    "Weak Crypto": ["MessageDigest.getInstance(\"MD5\")"],
+    "Hardcoded Secret": ["val token = \"tok_abcdef123456\""]
+  },
+  "swift": {
+    "SQL Injection": ["db.execute(\"SELECT * FROM users WHERE id=\" + request.query)"],
+    "Command Injection": ["Process().launchPath = request.query"],
+    "Path Traversal": ["FileHandle(forReadingAtPath: request.query)"],
+    "Server-Side Request Forgery": ["URLSession.shared.dataTask(with: URL(string: request.query)!)"],
+    "Unsafe Deserialization": ["NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(data)"],
+    "Server Template XSS": ["render(request.query)"],
+    "Weak Crypto": ["CC_MD5(data, len, &digest)"],
+    "Hardcoded Secret": ["let apiKey = \"sk_test_abcdef123456\""]
+  },
+  "c": {
+    "SQL Injection": ["sqlite3_exec(db, argv[1], 0, 0, 0);"],
+    "Command Injection": ["system(argv[1]);"],
+    "Path Traversal": ["fopen(argv[1], \"r\");"],
+    "Server-Side Request Forgery": ["curl_easy_perform(curl);"],
+    "Weak Crypto": ["MD5(data, len, out);"],
+    "Hardcoded Secret": ["const char *token = \"tok_abcdef123456\";"]
+  },
+  "cpp": {
+    "SQL Injection": ["sqlite3_exec(db, argv[1], 0, 0, 0);"],
+    "Command Injection": ["std::system(argv[1]);"],
+    "Path Traversal": ["std::ifstream file(argv[1]);"],
+    "Server-Side Request Forgery": ["curl_easy_perform(curl);"],
+    "Weak Crypto": ["MD5(data, len, out);"],
+    "Hardcoded Secret": ["std::string key = \"sk_live_abcdef123456\";"]
+  }
+}
