@@ -31,6 +31,9 @@
 ## Commit & Pull Request Guidelines
 
 - Commit messages follow Conventional Commits, often with scopes (e.g., `feat(auth): ...`, `refactor(scan): ...`, `docs: ...`).
+- Atomic commits: commit only the files you touched and list each path explicitly.
+  - For tracked files: `git commit -m "<scoped message>" -- path/to/file1 path/to/file2`
+  - For brand-new files: `git restore --staged :/ && git add "path/to/file1" "path/to/file2" && git commit -m "<scoped message>" -- path/to/file1 path/to/file2`
 - PRs should include:
   - A concise summary of changes and rationale.
   - Tests run (e.g., `npm test`) or a note if not run.
