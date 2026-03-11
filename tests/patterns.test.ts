@@ -53,4 +53,13 @@ describe("pattern detectors", () => {
     const ids = findings.map((f) => f.id);
     expect(ids).toContain("unsafe-deserialization");
   });
+
+  it("reports 1-based columns for secret findings", () => {
+    const code = "const apiKey = \"sk_live_1234567890123456\";";
+    const parsed = parseSource(code, "secret.ts");
+    const findings = runPatternDetectors(parsed.ast, parsed.filePath);
+    const stripe = findings.find((f) => f.id === "secret-stripe");
+    expect(stripe?.line).toBe(1);
+    expect(stripe?.column).toBe(16);
+  });
 });
