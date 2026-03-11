@@ -127,6 +127,23 @@ function walk(node: TNode, fn: (n: TNode) => void) {
   }
 }
 
+function walkWithScopes(
+  node: TNode,
+  isScopeNode: (n: TNode) => boolean,
+  onEnterScope: () => void,
+  onExitScope: () => void,
+  fn: (n: TNode) => void
+) {
+  const scoped = isScopeNode(node);
+  if (scoped) onEnterScope();
+  fn(node);
+  const children = node.namedChildren ?? [];
+  for (const child of children) {
+    walkWithScopes(normalizeTraverseNode(child), isScopeNode, onEnterScope, onExitScope, fn);
+  }
+  if (scoped) onExitScope();
+}
+
 function findIdentifiers(node: TNode, lang: LanguageConfig, source: string): string[] {
   const names: string[] = [];
   walk(node, (n) => {
@@ -177,6 +194,7 @@ export function runNativeTaint(
   const sanitize = (name: string) => currentSanitizedScope()?.add(name);
   const unsanitize = (name: string) => currentSanitizedScope()?.delete(name);
   const isSanitized = (name: string) => currentSanitizedScope()?.has(name) ?? false;
+  const isScopeNode = (node: TNode) => (lang.functionNodes ?? []).includes(node.type);
 
   const valueIsSanitized = (node: TNode, rule: NativeRule): boolean => {
     if (sanitizedExpressions.has(node)) return true;
@@ -293,7 +311,18 @@ export function runNativeTaint(
       return;
     }
 
-    walk(root, (node) => {
+    walkWithScopes(
+      root,
+      isScopeNode,
+      () => {
+        pushScope();
+        pushSanitizedScope();
+      },
+      () => {
+        popScope();
+        popSanitizedScope();
+      },
+      (node) => {
       if (lang.assignmentNodes.includes(node.type)) {
         handleAssignment(node, rule);
         return;

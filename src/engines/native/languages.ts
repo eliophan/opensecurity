@@ -18,6 +18,7 @@ export type LanguageConfig = {
   wasmFile: string;
   nativeModule: string;
   callNodes: string[];
+  functionNodes?: string[];
   callCalleeFields: string[];
   callArgumentFields: string[];
   assignmentNodes: string[];
@@ -38,6 +39,7 @@ const LANGUAGES: LanguageConfig[] = [
     wasmFile: "tree-sitter-python.wasm",
     nativeModule: "tree-sitter-python",
     callNodes: ["call"],
+    functionNodes: ["function_definition", "lambda"],
     callCalleeFields: ["function"],
     callArgumentFields: ["arguments"],
     assignmentNodes: ["assignment"],
@@ -56,6 +58,7 @@ const LANGUAGES: LanguageConfig[] = [
     wasmFile: "tree-sitter-go.wasm",
     nativeModule: "tree-sitter-go",
     callNodes: ["call_expression"],
+    functionNodes: ["function_declaration", "method_declaration", "function_literal"],
     callCalleeFields: ["function"],
     callArgumentFields: ["arguments"],
     assignmentNodes: ["assignment_statement"],
@@ -74,6 +77,7 @@ const LANGUAGES: LanguageConfig[] = [
     wasmFile: "tree-sitter-java.wasm",
     nativeModule: "tree-sitter-java",
     callNodes: ["method_invocation"],
+    functionNodes: ["method_declaration", "constructor_declaration", "lambda_expression"],
     callCalleeFields: ["name", "object"],
     callArgumentFields: ["arguments"],
     assignmentNodes: ["assignment_expression"],
@@ -92,6 +96,7 @@ const LANGUAGES: LanguageConfig[] = [
     wasmFile: "tree-sitter-c-sharp.wasm",
     nativeModule: "tree-sitter-c-sharp",
     callNodes: ["invocation_expression"],
+    functionNodes: ["method_declaration", "constructor_declaration", "lambda_expression", "anonymous_method_expression"],
     callCalleeFields: ["expression"],
     callArgumentFields: ["argument_list"],
     assignmentNodes: ["assignment_expression"],
@@ -110,6 +115,7 @@ const LANGUAGES: LanguageConfig[] = [
     wasmFile: "tree-sitter-ruby.wasm",
     nativeModule: "tree-sitter-ruby",
     callNodes: ["call", "command_call"],
+    functionNodes: ["method", "singleton_method", "lambda", "block"],
     callCalleeFields: ["method", "receiver"],
     callArgumentFields: ["arguments"],
     assignmentNodes: ["assignment"],
@@ -128,6 +134,7 @@ const LANGUAGES: LanguageConfig[] = [
     wasmFile: "tree-sitter-php.wasm",
     nativeModule: "tree-sitter-php",
     callNodes: ["function_call_expression", "member_call_expression", "scoped_call_expression"],
+    functionNodes: ["function_definition", "method_declaration", "anonymous_function_creation_expression"],
     callCalleeFields: ["name", "function", "member", "scope"],
     callArgumentFields: ["arguments"],
     assignmentNodes: ["assignment_expression"],
@@ -146,6 +153,7 @@ const LANGUAGES: LanguageConfig[] = [
     wasmFile: "tree-sitter-rust.wasm",
     nativeModule: "tree-sitter-rust",
     callNodes: ["call_expression", "macro_invocation"],
+    functionNodes: ["function_item", "closure_expression"],
     callCalleeFields: ["function", "macro"],
     callArgumentFields: ["arguments", "token_tree"],
     assignmentNodes: ["assignment_expression", "let_declaration"],
@@ -164,6 +172,7 @@ const LANGUAGES: LanguageConfig[] = [
     wasmFile: "tree-sitter-kotlin.wasm",
     nativeModule: "tree-sitter-kotlin",
     callNodes: ["call_expression", "primary_expression"],
+    functionNodes: ["function_declaration", "lambda_literal", "anonymous_function"],
     callCalleeFields: ["callee", "reference"],
     callArgumentFields: ["value_arguments"],
     assignmentNodes: ["assignment"],
@@ -182,6 +191,7 @@ const LANGUAGES: LanguageConfig[] = [
     wasmFile: "tree-sitter-swift.wasm",
     nativeModule: "tree-sitter-swift",
     callNodes: ["function_call_expression"],
+    functionNodes: ["function_declaration", "initializer_declaration", "closure_expression"],
     callCalleeFields: ["function"],
     callArgumentFields: ["argument_clause"],
     assignmentNodes: ["assignment_expression"],
@@ -200,6 +210,7 @@ const LANGUAGES: LanguageConfig[] = [
     wasmFile: "tree-sitter-c.wasm",
     nativeModule: "tree-sitter-c",
     callNodes: ["call_expression"],
+    functionNodes: ["function_definition"],
     callCalleeFields: ["function"],
     callArgumentFields: ["arguments"],
     assignmentNodes: ["assignment_expression", "init_declarator"],
@@ -218,6 +229,7 @@ const LANGUAGES: LanguageConfig[] = [
     wasmFile: "tree-sitter-cpp.wasm",
     nativeModule: "tree-sitter-cpp",
     callNodes: ["call_expression"],
+    functionNodes: ["function_definition", "lambda_expression"],
     callCalleeFields: ["function"],
     callArgumentFields: ["arguments"],
     assignmentNodes: ["assignment_expression", "init_declarator"],
