@@ -80,4 +80,68 @@ describe("native taint engine", () => {
     expect(findings.length).toBe(1);
     expect(findings[0]?.ruleId).toBe("test-taint");
   });
+
+  it("does not flag sanitized flow", () => {
+    const source = "safe = sanitize(input());\nexec(safe);";
+    const inputIdent = node("identifier", 18, 23);
+    const sourceCall = node("call", 18, 25, { function: inputIdent, arguments: node("arguments", 23, 25, {}, []) });
+    const sanitizeIdent = node("identifier", 7, 15);
+    const sanitizeCall = node(
+      "call",
+      7,
+      25,
+      { function: sanitizeIdent, arguments: node("arguments", 15, 25, {}, [sourceCall]) },
+      [sourceCall]
+    );
+    const assignLeft = node("identifier", 0, 4);
+    const assign = node("assignment", 0, 25, { left: assignLeft, right: sanitizeCall });
+    const sinkName = node("identifier", 27, 31);
+    const sinkArg = node("identifier", 32, 36);
+    const sinkCall = node(
+      "call",
+      27,
+      37,
+      { function: sinkName, arguments: node("arguments", 31, 37, {}, [sinkArg]) },
+      [sinkArg]
+    );
+    const root = node("root", 0, 37, {}, [assign, sinkCall]);
+
+    const lang: LanguageConfig = {
+      id: "python",
+      name: "TestLang",
+      extensions: [".t"],
+      wasmFile: "test.wasm",
+      nativeModule: "test",
+      callNodes: ["call"],
+      callCalleeFields: ["function"],
+      callArgumentFields: ["arguments"],
+      assignmentNodes: ["assignment"],
+      assignmentLeftFields: ["left"],
+      assignmentRightFields: ["right"],
+      memberNodes: [],
+      memberObjectFields: [],
+      memberPropertyFields: [],
+      identifierNodes: ["identifier"],
+      stringNodes: ["string"]
+    };
+
+    const rules: NativeRuleSet = {
+      language: "python",
+      rules: [
+        {
+          id: "test-taint",
+          title: "Test Taint",
+          severity: "high",
+          owasp: "A03:2021 Injection",
+          kind: "taint",
+          sources: [{ id: "src", name: "input", matcher: { callee: ["input"] } }],
+          sinks: [{ id: "sink", name: "exec", matcher: { callee: ["exec"] } }],
+          sanitizers: [{ id: "san", name: "sanitize", matcher: { callee: ["sanitize"] } }]
+        }
+      ]
+    };
+
+    const findings = runNativeTaint({ rootNode: root }, source, lang, rules, "sample.t");
+    expect(findings.length).toBe(0);
+  });
 });
