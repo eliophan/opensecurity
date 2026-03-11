@@ -33,15 +33,23 @@ export function runTaintAnalysis(ast: File, filePath: string, rules: TaintRuleSe
   const traverse = normalizeTraverse(traverseImport);
   const findings: TaintFinding[] = [];
   const taintedVarsStack: Array<Set<string>> = [];
+  const sanitizedVarsStack: Array<Set<string>> = [];
   const taintedExpressions = new WeakSet<t.Node>();
+  const sanitizedExpressions = new WeakSet<t.Node>();
 
   const pushScope = () => taintedVarsStack.push(new Set());
   const popScope = () => taintedVarsStack.pop();
+  const pushSanitizedScope = () => sanitizedVarsStack.push(new Set());
+  const popSanitizedScope = () => sanitizedVarsStack.pop();
   const currentScope = () => taintedVarsStack[taintedVarsStack.length - 1];
+  const currentSanitizedScope = () => sanitizedVarsStack[sanitizedVarsStack.length - 1];
 
   const isTainted = (name: string) => currentScope()?.has(name) ?? false;
   const taint = (name: string) => currentScope()?.add(name);
   const untaint = (name: string) => currentScope()?.delete(name);
+  const isSanitized = (name: string) => currentSanitizedScope()?.has(name) ?? false;
+  const sanitize = (name: string) => currentSanitizedScope()?.add(name);
+  const unsanitize = (name: string) => currentSanitizedScope()?.delete(name);
 
   const matchEndpoint = (node: CallExpression, endpoints: TaintEndpoint[]) => {
     const calleeNames = getCalleeNames(node);
@@ -53,14 +61,63 @@ export function runTaintAnalysis(ast: File, filePath: string, rules: TaintRuleSe
   const isSourceCall = (node: CallExpression) => matchEndpoint(node, rules.sources);
   const isSinkCall = (node: CallExpression) => matchEndpoint(node, rules.sinks);
 
+  const valueIsSanitized = (node: t.Node): boolean => {
+    if (sanitizedExpressions.has(node)) return true;
+    if (t.isIdentifier(node)) return isSanitized(node.name);
+    if (t.isMemberExpression(node)) {
+      return t.isExpression(node.object) ? valueIsSanitized(node.object) : false;
+    }
+    if (t.isCallExpression(node)) {
+      if (isSanitizerCall(node)) {
+        sanitizedExpressions.add(node);
+        return true;
+      }
+      return false;
+    }
+    if (t.isBinaryExpression(node) || t.isLogicalExpression(node)) {
+      return valueIsSanitized(node.left) || valueIsSanitized(node.right);
+    }
+    if (t.isConditionalExpression(node)) {
+      return (
+        valueIsSanitized(node.test) ||
+        valueIsSanitized(node.consequent) ||
+        valueIsSanitized(node.alternate)
+      );
+    }
+    if (t.isTemplateLiteral(node)) {
+      return node.expressions.some((expr) => valueIsSanitized(expr));
+    }
+    if (t.isArrayExpression(node)) {
+      return node.elements.some((el) => (t.isExpression(el) ? valueIsSanitized(el) : false));
+    }
+    if (t.isObjectExpression(node)) {
+      return node.properties.some((prop) => {
+        if (t.isObjectProperty(prop) && t.isExpression(prop.value)) return valueIsSanitized(prop.value);
+        if (t.isSpreadElement(prop) && t.isExpression(prop.argument)) return valueIsSanitized(prop.argument);
+        return false;
+      });
+    }
+    if (t.isUnaryExpression(node)) {
+      return t.isExpression(node.argument) ? valueIsSanitized(node.argument) : false;
+    }
+    if (t.isSequenceExpression(node)) {
+      return node.expressions.some((expr) => valueIsSanitized(expr));
+    }
+    return false;
+  };
+
   const valueIsTainted = (node: t.Node): boolean => {
+    if (valueIsSanitized(node)) return false;
     if (taintedExpressions.has(node)) return true;
     if (t.isIdentifier(node)) return isTainted(node.name);
     if (t.isMemberExpression(node)) {
       return t.isExpression(node.object) ? valueIsTainted(node.object) : false;
     }
     if (t.isCallExpression(node)) {
-      if (isSanitizerCall(node)) return false;
+      if (isSanitizerCall(node)) {
+        sanitizedExpressions.add(node);
+        return false;
+      }
       if (isSourceCall(node)) return true;
       return false;
     }
@@ -96,19 +153,27 @@ export function runTaintAnalysis(ast: File, filePath: string, rules: TaintRuleSe
     if (t.isCallExpression(value)) {
       if (isSanitizerCall(value)) {
         untaint(id.name);
+        sanitize(id.name);
+        sanitizedExpressions.add(value);
         return;
       }
       if (isSourceCall(value)) {
         taint(id.name);
+        unsanitize(id.name);
         taintedExpressions.add(value);
         return;
       }
     }
 
-    if (valueIsTainted(value)) {
+    if (valueIsSanitized(value)) {
+      untaint(id.name);
+      sanitize(id.name);
+    } else if (valueIsTainted(value)) {
       taint(id.name);
+      unsanitize(id.name);
     } else {
       untaint(id.name);
+      unsanitize(id.name);
     }
   };
 
@@ -116,17 +181,21 @@ export function runTaintAnalysis(ast: File, filePath: string, rules: TaintRuleSe
     Program: {
       enter() {
         pushScope();
+        pushSanitizedScope();
       },
       exit() {
         popScope();
+        popSanitizedScope();
       }
     },
     Function: {
       enter() {
         pushScope();
+        pushSanitizedScope();
       },
       exit() {
         popScope();
+        popSanitizedScope();
       }
     },
     VariableDeclarator(path: import("@babel/traverse").NodePath<t.VariableDeclarator>) {
