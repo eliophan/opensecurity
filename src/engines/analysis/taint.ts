@@ -1,5 +1,5 @@
 import traverseImport from "@babel/traverse";
-import type { File, CallExpression, Identifier, MemberExpression } from "@babel/types";
+import type { File, CallExpression, Identifier, MemberExpression, OptionalMemberExpression } from "@babel/types";
 import * as t from "@babel/types";
 
 export type CallMatcher = {
@@ -44,9 +44,9 @@ export function runTaintAnalysis(ast: File, filePath: string, rules: TaintRuleSe
   const untaint = (name: string) => currentScope()?.delete(name);
 
   const matchEndpoint = (node: CallExpression, endpoints: TaintEndpoint[]) => {
-    const calleeName = getCalleeName(node);
-    if (!calleeName) return null;
-    return endpoints.find((endpoint) => matchesCallee(calleeName, endpoint.matcher));
+    const calleeNames = getCalleeNames(node);
+    if (!calleeNames.length) return null;
+    return endpoints.find((endpoint) => matchesAnyCallee(calleeNames, endpoint.matcher));
   };
 
   const isSanitizerCall = (node: CallExpression) => matchEndpoint(node, rules.sanitizers);
@@ -160,25 +160,50 @@ export function runTaintAnalysis(ast: File, filePath: string, rules: TaintRuleSe
   return findings;
 }
 
-function getCalleeName(node: CallExpression): string | null {
+function getCalleeNames(node: CallExpression): string[] {
   const callee = node.callee;
-  if (t.isIdentifier(callee)) return callee.name;
-  if (t.isMemberExpression(callee)) return memberExpressionToString(callee);
-  return null;
+  if (t.isIdentifier(callee)) return [callee.name];
+  if (t.isMemberExpression(callee) || t.isOptionalMemberExpression(callee)) {
+    return memberExpressionToNames(callee);
+  }
+  return [];
 }
 
-function memberExpressionToString(node: MemberExpression): string | null {
-  if (node.computed) return null;
-  const object = node.object;
-  const property = node.property;
-  const objectName = t.isIdentifier(object)
-    ? object.name
-    : t.isMemberExpression(object)
-      ? memberExpressionToString(object)
-      : null;
-  if (!objectName) return null;
-  if (!t.isIdentifier(property)) return null;
-  return `${objectName}.${property.name}`;
+function memberExpressionToNames(node: MemberExpression | OptionalMemberExpression): string[] {
+  const chain = extractMemberChain(node);
+  if (!chain.length) return [];
+  const variants = new Set<string>();
+  for (let i = 0; i < chain.length; i += 1) {
+    variants.add(chain.slice(i).join("."));
+  }
+  return Array.from(variants);
+}
+
+function extractMemberChain(node: MemberExpression | OptionalMemberExpression): string[] {
+  if (node.computed) {
+    if (t.isStringLiteral(node.property)) {
+      const objectNames = extractMemberObjectNames(node.object);
+      return objectNames.length ? [...objectNames, node.property.value] : [];
+    }
+    return [];
+  }
+  const objectNames = extractMemberObjectNames(node.object);
+  if (!t.isIdentifier(node.property)) return [];
+  return objectNames.length ? [...objectNames, node.property.name] : [];
+}
+
+function extractMemberObjectNames(object: t.Expression | t.PrivateName): string[] {
+  if (t.isIdentifier(object)) return [object.name];
+  if (t.isThisExpression(object)) return ["this"];
+  if (t.isMemberExpression(object) || t.isOptionalMemberExpression(object)) return extractMemberChain(object);
+  return [];
+}
+
+function matchesAnyCallee(calleeNames: string[], matcher: CallMatcher): boolean {
+  for (const calleeName of calleeNames) {
+    if (matchesCallee(calleeName, matcher)) return true;
+  }
+  return false;
 }
 
 function matchesCallee(calleeName: string, matcher: CallMatcher): boolean {

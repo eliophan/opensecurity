@@ -60,19 +60,27 @@ function matchGlob(value: string, pattern: string): boolean {
   }
 }
 
-function getNodeName(node: TNode, lang: LanguageConfig, source: string): string | null {
+function getNodeNames(node: TNode, lang: LanguageConfig, source: string): string[] {
   if (lang.identifierNodes.includes(node.type)) {
-    return getNodeText(node, source);
+    return [getNodeText(node, source)];
   }
   if (lang.memberNodes.includes(node.type)) {
     const objectNode = pickField(node, lang.memberObjectFields);
     const propNode = pickField(node, lang.memberPropertyFields);
-    const objectName = objectNode ? getNodeName(objectNode, lang, source) ?? getNodeText(objectNode, source) : null;
-    const propName = propNode ? getNodeName(propNode, lang, source) ?? getNodeText(propNode, source) : null;
-    if (objectName && propName) return `${objectName}.${propName}`;
-    if (propName) return propName;
+    const objectNames = objectNode ? getNodeNames(objectNode, lang, source) : [];
+    const propName = propNode ? (getNodeNames(propNode, lang, source)[0] ?? getNodeText(propNode, source)) : null;
+    if (!propName) return [];
+    const fullNames = objectNames.length ? objectNames.map((name) => `${name}.${propName}`) : [propName];
+    const variants = new Set<string>();
+    for (const fullName of fullNames) {
+      const parts = fullName.split(".");
+      for (let i = 0; i < parts.length; i += 1) {
+        variants.add(parts.slice(i).join("."));
+      }
+    }
+    return Array.from(variants);
   }
-  return null;
+  return [];
 }
 
 function pickField(node: TNode, fields: string[]): TNode | null {
@@ -83,12 +91,14 @@ function pickField(node: TNode, fields: string[]): TNode | null {
   return null;
 }
 
-function getCallName(node: TNode, lang: LanguageConfig, source: string): string | null {
+function getCallNames(node: TNode, lang: LanguageConfig, source: string): string[] {
   const callee =
     pickField(node, lang.callCalleeFields) ??
     (node.namedChildren?.[0] ? normalizeTraverseNode(node.namedChildren[0]) : null);
-  if (!callee) return null;
-  return getNodeName(callee, lang, source) ?? getNodeText(callee, source);
+  if (!callee) return [];
+  const names = getNodeNames(callee, lang, source);
+  if (names.length) return names;
+  return [getNodeText(callee, source)];
 }
 
 function getCallArguments(node: TNode, lang: LanguageConfig): TNode[] {
@@ -120,10 +130,25 @@ function walk(node: TNode, fn: (n: TNode) => void) {
 function findIdentifiers(node: TNode, lang: LanguageConfig, source: string): string[] {
   const names: string[] = [];
   walk(node, (n) => {
-    const name = getNodeName(n, lang, source);
+    const name = getNodeNames(n, lang, source)[0];
     if (name && lang.identifierNodes.includes(n.type)) names.push(name);
   });
   return names;
+}
+
+function matchesAnyCallee(names: string[], matcher: CallMatcher): boolean {
+  for (const name of names) {
+    if (matchesCallee(name, matcher)) return true;
+  }
+  return false;
+}
+
+function indexToLineColumn(source: string, index: number): { line: number; column: number } {
+  const before = source.slice(0, Math.max(0, index));
+  const lines = before.split("\n");
+  const line = lines.length;
+  const column = lines[lines.length - 1]?.length ?? 0;
+  return { line, column: column + 1 };
 }
 
 export function runNativeTaint(
@@ -147,21 +172,22 @@ export function runNativeTaint(
 
   const valueIsTainted = (node: TNode, rule: NativeRule): boolean => {
     if (taintedExpressions.has(node)) return true;
-    const nodeName = getNodeName(node, lang, source);
-    if (nodeName && rule.sources?.some((src) => matchesCallee(nodeName, src.matcher))) {
+    const nodeNames = getNodeNames(node, lang, source);
+    if (nodeNames.length && rule.sources?.some((src) => matchesAnyCallee(nodeNames, src.matcher))) {
       return true;
     }
-    if (lang.identifierNodes.includes(node.type) && nodeName) {
-      return isTainted(nodeName);
+    const primaryName = nodeNames[0];
+    if (lang.identifierNodes.includes(node.type) && primaryName) {
+      return isTainted(primaryName);
     }
-    if (lang.memberNodes.includes(node.type) && nodeName) {
-      return isTainted(nodeName);
+    if (lang.memberNodes.includes(node.type) && primaryName) {
+      return isTainted(primaryName);
     }
     if (lang.callNodes.includes(node.type)) {
-      const calleeName = getCallName(node, lang, source);
-      if (calleeName) {
-        if (rule.sanitizers?.some((san) => matchesCallee(calleeName, san.matcher))) return false;
-        if (rule.sources?.some((src) => matchesCallee(calleeName, src.matcher))) return true;
+      const calleeNames = getCallNames(node, lang, source);
+      if (calleeNames.length) {
+        if (rule.sanitizers?.some((san) => matchesAnyCallee(calleeNames, san.matcher))) return false;
+        if (rule.sources?.some((src) => matchesAnyCallee(calleeNames, src.matcher))) return true;
       }
     }
     const children = node.namedChildren ?? [];
@@ -185,14 +211,15 @@ export function runNativeTaint(
 
   const reportFinding = (rule: NativeRule, node: TNode, message: string) => {
     const loc = node.startPosition;
+    const fallback = loc ? null : indexToLineColumn(source, node.startIndex);
     findings.push({
       ruleId: rule.id,
       ruleTitle: rule.title,
       severity: rule.severity,
       owasp: rule.owasp,
       file: filePath,
-      line: loc ? loc.row + 1 : undefined,
-      column: loc ? loc.column + 1 : undefined,
+      line: loc ? loc.row + 1 : fallback?.line,
+      column: loc ? loc.column + 1 : fallback?.column,
       message
     });
   };
@@ -219,8 +246,8 @@ export function runNativeTaint(
       };
       walk(root, (node) => {
         if (!lang.callNodes.includes(node.type)) return;
-        const name = getCallName(node, lang, source);
-        if (name && matchesCallee(name, matcher)) {
+        const names = getCallNames(node, lang, source);
+        if (names.length && matchesAnyCallee(names, matcher)) {
           reportFinding(rule, node, rule.title);
         }
       });
@@ -234,9 +261,9 @@ export function runNativeTaint(
       }
 
       if (lang.callNodes.includes(node.type)) {
-        const calleeName = getCallName(node, lang, source);
-        if (!calleeName) return;
-        const sink = rule.sinks?.find((candidate) => matchesCallee(calleeName, candidate.matcher));
+        const calleeNames = getCallNames(node, lang, source);
+        if (!calleeNames.length) return;
+        const sink = rule.sinks?.find((candidate) => matchesAnyCallee(calleeNames, candidate.matcher));
         if (!sink) return;
         const args = getCallArguments(node, lang);
         const hasTainted = args.some((arg) => valueIsTainted(arg, rule));
